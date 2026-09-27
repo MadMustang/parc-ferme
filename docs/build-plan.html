@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Local copy of the published plan: https://claude.ai/artifact/5BZK28B8dD16cPHm9DSwY9 -->
 <title>Parc Fermé Blueprint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,7 +116,7 @@ flowchart LR
     Auth["Auth<br/>magic link + Google"]
     DB[("Postgres<br/>tables + RLS<br/>scoring views")]
     RT["Realtime"]
-    CronW["pg_cron · weekly<br/>Mon 06:00 UTC"]
+    CronW["pg_cron · daily<br/>06:00 UTC"]
     CronS["pg_cron · every minute<br/>fires only if a race<br/>is waiting for results"]
     FnC["Edge Function<br/>sync-calendar"]
     FnS["Edge Function<br/>score-races"]
@@ -133,13 +132,13 @@ flowchart LR
   FnC -- "GET meetings (next 4 weeks);<br/>sessions + drivers (this week)" --> API
   FnS -- "GET session_result, laps" --> API
   FnC -- "upsert" --> DB
-  FnS -- "insert results" --> DB
+  FnS -- "upsert scores,<br/>then insert results" --> DB
   </pre></div>
   <div class="legend">
     <div><b>Postgres + RLS</b><span>Holds all the rules. Picks are locked at the database, so a modified client can't get around them.</span></div>
-    <div><b>Weekly calendar sync</b><span>Every Monday, fetch the meetings in the next 4 weeks and upsert them. For a meeting that starts within 7 days, also fetch its sessions and drivers, even if the meeting is already stored.</span></div>
+    <div><b>Daily calendar sync</b><span>Every day, fetch the meetings in the next 4 weeks and upsert them. For a meeting that starts within 7 days, also fetch its sessions and drivers, even if the meeting is already stored.</span></div>
     <div><b>Per-minute check, run by the database</b><span>The cron job checks Postgres for a race that's waiting for results. It calls <code>score-races</code> only if it finds one, so most minutes cost nothing.</span></div>
-    <div><b>Scoring is a view</b><span>Points are calculated when the leaderboard is read, so there's no scores table to keep in sync.</span></div>
+    <div><b>Scoring in TypeScript</b><span><code>score-races</code> calculates each player's points once, when results arrive, and stores them in <code>scores</code>. The leaderboard is a plain view over that table.</span></div>
   </div>
 </section>
 
@@ -148,8 +147,8 @@ flowchart LR
   <h2>From calendar to scores</h2>
   <p>Picks lock at the start of <em>Grand Prix</em> qualifying, because pole is one of the picks. On sprint weekends, sprint qualifying happens on Friday and doesn't count.</p>
   <div class="tl-scroll"><div class="tl">
-    <div><span class="day">Mon, up to 4 wks before</span><span class="s">Calendar</span><span class="pill sync">Synced</span><span class="note">The meeting is stored and shows up as coming soon.</span></div>
-    <div><span class="day">Mon, race week</span><span class="s">Entry list</span><span class="pill open">Picks open</span><span class="note">Sessions and drivers are stored, so the pick form appears.</span></div>
+    <div><span class="day">Up to 4 wks before</span><span class="s">Calendar</span><span class="pill sync">Synced</span><span class="note">The meeting is stored and shows up as coming soon.</span></div>
+    <div><span class="day">Race week</span><span class="s">Entry list</span><span class="pill open">Picks open</span><span class="note">Sessions are stored within 7 days of the weekend. Picks open once OpenF1 publishes the entry list.</span></div>
     <div><span class="day">Fri</span><span class="s">FP1 · FP2</span><span class="pill open">Picks open</span><span class="note">Edit as often as you like.</span></div>
     <div><span class="day">Sat</span><span class="s">FP3</span><span class="pill open">Picks open</span><span class="note">Last chance after practice.</span></div>
     <div><span class="day">Sat</span><span class="s">Qualifying</span><span class="pill lock">Picks lock</span><span class="note"><code>lock_at</code> = qualifying <code>date_start</code>. Everyone's picks become visible.</span></div>
@@ -171,7 +170,7 @@ sequenceDiagram
   participant F as Edge Functions
   participant O as OpenF1
 
-  C->>F: Monday: sync-calendar
+  C->>F: daily: sync-calendar
   F->>O: GET /meetings?date_start in next 4 weeks
   F->>DB: upsert meetings
   loop each meeting that starts within 7 days
@@ -201,7 +200,10 @@ sequenceDiagram
   else results available
     F->>O: GET /session_result (qualifying, position=1)
     F->>O: GET /laps?session_key=… (min lap_duration)
-    F->>DB: insert results row
+    F->>DB: select predictions for the race
+    F->>F: scorePicks() for each player
+    F->>DB: upsert scores
+    F->>DB: insert results row (the "done" signal)
     Note over DB: race leaves races_unscored, so polling stops
     DB-->>App: Realtime: INSERT on results
     App->>DB: select * from leaderboard
@@ -323,13 +325,15 @@ create trigger on_auth_user_created
 
 <section>
   <div class="eyebrow">05 · Data model</div>
-  <h2>Six tables, four views</h2>
+  <h2>Seven tables, three views</h2>
   <div class="diagram"><pre class="mermaid">
 erDiagram
   meetings ||--|{ sessions : has
   profiles ||--o{ predictions : makes
   sessions ||--o{ predictions : "race picked"
   sessions ||--o| results : "race scored"
+  profiles ||--o{ scores : earns
+  sessions ||--o{ scores : "race scored"
   sessions ||--|{ drivers : "entry list"
   drivers ||--o{ predictions : "p1..fastest_lap"
 
@@ -376,15 +380,21 @@ erDiagram
     int pole
     int fastest_lap
   }
+  scores {
+    uuid user_id PK
+    int session_key PK "race session"
+    int points "0 to 15"
+  }
   </pre></div>
-  <p>The tables store what OpenF1 returns: one row per meeting, one per session, and one per driver per session.</p>
+  <p>The calendar tables store what OpenF1 returns: one row per meeting, one per session, and one per driver per session. <code>scores</code> is written by <code>score-races</code>, one row per player per race.</p>
   <p><code>drivers</code> is keyed by <code>(session_key, driver_number)</code> because car numbers can change between seasons. Lando Norris raced as #4 and is #1 in 2026. Predictions and results point at drivers through <code>(session_key, p1)</code> and the like, so a pick can only name a driver on that race's entry list.</p>
   <p>The rest is built with views:</p>
   <ul class="plain">
     <li><code>races</code>: one row per Grand Prix, joining the race session to its qualifying session to get <code>lock_at</code>. The app and the RLS policies use this view.</li>
     <li><code>races_unscored</code>: races that ended in the last 2 days and have no results yet. The per-minute cron job uses it to decide whether to call <code>score-races</code>.</li>
-    <li><code>prediction_points</code> and <code>leaderboard</code>: scoring, using <code>security_invoker</code> so they follow the same RLS rules as the tables.</li>
+    <li><code>leaderboard</code>: each player's total, races played and best race, summed from <code>scores</code>. Only races with a results row count.</li>
   </ul>
+  <p>All three views use <code>security_invoker</code>, so they follow the same RLS rules as the tables. The full schema is in <code>supabase/migrations/20260927152808_init.sql</code>.</p>
 </section>
 
 <section>
@@ -393,7 +403,7 @@ erDiagram
   <div class="tbl"><table>
     <thead><tr><th>Our column</th><th>Endpoint</th><th>How</th></tr></thead>
     <tbody>
-      <tr><td><code>meetings.*</code></td><td><code>/meetings?date_start&gt;=…&amp;date_start&lt;=…</code></td><td>Weekly, for today through today + 28 days. Each <code>meeting_key</code> is one weekend, stored as soon as it appears.</td></tr>
+      <tr><td><code>meetings.*</code></td><td><code>/meetings?date_start&gt;=…&amp;date_start&lt;=…</code></td><td>Daily, for today through today + 28 days. Each <code>meeting_key</code> is one weekend, stored as soon as it appears.</td></tr>
       <tr><td><code>sessions.*</code></td><td><code>/sessions?meeting_key=…</code></td><td>Only for a meeting that starts within 7 days of the run, including one already stored. That run fetches the most up-to-date session times.</td></tr>
       <tr><td><code>drivers.*</code></td><td><code>/drivers?meeting_key=…</code></td><td>Same meetings as the sessions row. It returns the entry list for every session of the weekend, and it works before the weekend starts. Some rows come back twice, so drop duplicates before the upsert.</td></tr>
       <tr><td><code>results.p1–p3</code></td><td><code>/session_result?session_key=…&amp;position&lt;=3</code></td><td>Race classification.</td></tr>
@@ -417,11 +427,12 @@ erDiagram
     </tbody>
     <tfoot><tr><td colspan="2">Perfect weekend</td><td class="num">15</td></tr></tfoot>
   </table></div>
+  <p>The rules live in <code>supabase/functions/score-races/scoring.ts</code>, a plain TypeScript function with no Deno or Supabase imports. <code>npm run test:scoring</code> checks it against the example race from the mockups. Changing the points is a code change there, not a database migration.</p>
 </section>
 
 <section>
   <div class="eyebrow">08 · The important SQL</div>
-  <h2>Races, locks, scoring and schedules</h2>
+  <h2>Races, locks, scores and schedules</h2>
 
   <h3>A race is a Race session plus its Qualifying session</h3>
 <pre class="code">create view races as
@@ -499,37 +510,35 @@ create policy "read own, or all after lock" on predictions
 <span class="c">-- meetings, sessions, drivers, results: select for authenticated; no write policy,</span>
 <span class="c">-- so only the Edge Functions (service role) can write to them</span></pre>
 
-  <h3>Scoring is a view</h3>
-<pre class="code">create view prediction_points with (security_invoker = on) as
-select p.user_id, p.session_key,
-    (select count(*) from unnest(array[p.p1, p.p2, p.p3]) d
-      where d = any (array[r.p1, r.p2, r.p3]))::int     <span class="c">-- 1 per podium driver</span>
-  + (p.p1 = r.p1)::int * 4
-  + (p.p2 = r.p2)::int * 2
-  + (p.p3 = r.p3)::int * 2
-  + (p.pole = r.pole)::int * 2
-  + (p.fastest_lap = r.fastest_lap)::int * 2  as points
-from predictions p
-join results r using (session_key);
+  <h3>Scores are stored; the leaderboard is a view</h3>
+<pre class="code">create table scores (
+  user_id     uuid references profiles on delete cascade,
+  session_key int  references sessions on delete cascade,   <span class="c">-- the race session</span>
+  points      int  not null check (points between 0 and 15),
+  primary key (user_id, session_key)
+);
 
 create view leaderboard with (security_invoker = on) as
-select pr.display_name, sum(pp.points) as total, count(*) as races
-from prediction_points pp
-join profiles pr on pr.id = pp.user_id
-group by pr.display_name
+select pr.id as user_id, pr.display_name,
+       sum(s.points)::int as total, count(*)::int as races, max(s.points) as best_race
+from scores s
+join results r   on r.session_key = s.session_key     <span class="c">-- only races that are done</span>
+join profiles pr on pr.id = s.user_id
+group by pr.id, pr.display_name                        <span class="c">-- by id: two players can share a name</span>
 order by total desc;</pre>
 
   <h3>Two cron jobs</h3>
 <pre class="code"><span class="c">-- TODO: Securely load this value from an environment variable or secrets vault. Do not hardcode.</span>
-<span class="c">-- Store project_url and service_key in Supabase Vault first, then read them here.</span>
+<span class="c">-- Store project_url and secret_key in Supabase Vault first, then read them here.</span>
+<span class="c">-- The functions check the new secret API key, sent in an apikey header.</span>
 
-<span class="c">-- 1. calendar: every Monday at 06:00 UTC</span>
-select cron.schedule('sync-calendar', '0 6 * * 1', $$
+<span class="c">-- 1. calendar: every day at 06:00 UTC</span>
+select cron.schedule('sync-calendar', '0 6 * * *', $$
   select net.http_post(
     url     := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
                || '/functions/v1/sync-calendar',
-    headers := jsonb_build_object('Authorization', 'Bearer ' ||
-               (select decrypted_secret from vault.decrypted_secrets where name = 'service_key'))
+    headers := jsonb_build_object('apikey',
+               (select decrypted_secret from vault.decrypted_secrets where name = 'secret_key'))
   );
 $$);
 
@@ -540,128 +549,84 @@ select cron.schedule('score-races', '* * * * *', $$
   select net.http_post(
     url     := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
                || '/functions/v1/score-races',
-    headers := jsonb_build_object('Authorization', 'Bearer ' ||
-               (select decrypted_secret from vault.decrypted_secrets where name = 'service_key'))
+    headers := jsonb_build_object('apikey',
+               (select decrypted_secret from vault.decrypted_secrets where name = 'secret_key'))
   )
   where exists (select 1 from races_unscored);
 $$);</pre>
 
-  <h3>The Edge Functions, in outline</h3>
-<pre class="code"><span class="c">// supabase/functions/sync-calendar/index.ts</span>
-import { createClient } from "npm:@supabase/supabase-js@2";
-const API = "https://api.openf1.org/v1";
-const get = (path: string) =&gt; fetch(API + path).then((r) =&gt; r.json());
-const day = (d: Date) =&gt; d.toISOString().slice(0, 10);
-
-Deno.serve(async () =&gt; {
-  <span class="c">// TODO: Securely load this value from an environment variable or secrets vault. Do not hardcode.</span>
-  <span class="c">// (Supabase injects both into Edge Functions automatically.)</span>
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-  const from = new Date();
-  const to = new Date(Date.now() + 28 * 24 * 3600 * 1000);
-  const meetings = await get(`/meetings?date_start&gt;=${day(from)}&amp;date_start&lt;=${day(to)}`);
-
-  <span class="c">// upsert, not insert-if-missing, so moved or corrected times are picked up</span>
-  await db.from("meetings").upsert(meetings.map(pickMeetingColumns));
-
-  <span class="c">// sessions and drivers only for a meeting that starts this week, even if it's already stored</span>
-  const weekAhead = Date.now() + 7 * 24 * 3600 * 1000;
-  for (const m of meetings.filter((m) =&gt; Date.parse(m.date_start) &lt; weekAhead)) {
-    const sessions = await get(`/sessions?meeting_key=${m.meeting_key}`);
-    await db.from("sessions").upsert(sessions.map(pickSessionColumns));
-
-    <span class="c">// OpenF1 returns some rows twice, and one upsert can't touch the same key twice</span>
-    const drivers = await get(`/drivers?meeting_key=${m.meeting_key}`);
-    const unique = [...new Map(drivers.map((d) =&gt; [`${d.session_key}:${d.driver_number}`, d])).values()];
-    await db.from("drivers").upsert(unique.map(pickDriverColumns));
-  }
-  return new Response("ok");
-});
-
-<span class="c">// supabase/functions/score-races/index.ts (same setup as above)</span>
-Deno.serve(async () =&gt; {
-  const { data: pending } = await db.from("races_unscored").select("*");
-  for (const race of pending ?? []) {
-    const podium = await get(`/session_result?session_key=${race.session_key}&amp;position&lt;=3`);
-    if (podium.length &lt; 3) continue;                      <span class="c">// not published yet</span>
-    const [pole] = await get(`/session_result?session_key=${race.quali_session_key}&amp;position=1`);
-    const laps = (await get(`/laps?session_key=${race.session_key}`)).filter((l) =&gt; l.lap_duration);
-    const fastest = laps.reduce((a, b) =&gt; (b.lap_duration &lt; a.lap_duration ? b : a));
-    await db.from("results").insert({ session_key: race.session_key, /* p1..p3, pole, fastest_lap */ });
-  }
-  return new Response("ok");
-});</pre>
+  <h3>The Edge Functions</h3>
+  <p>Both are in <code>supabase/functions/</code> and accept only the secret API key, because only pg_cron calls them.</p>
+  <ul class="plain">
+    <li><b><code>sync-calendar/index.ts</code></b>: upserts the meetings for the next 4 weeks. For a meeting starting within 7 days it also upserts its sessions and entry list, dropping OpenF1's duplicate rows first. In dev, POST <code>{"from": "2025-10-01", "to": "2025-10-10"}</code> to sync a past window instead.</li>
+    <li><b><code>score-races/index.ts</code></b>: for each race in <code>races_unscored</code>, fetches the podium, pole and fastest lap. If the podium isn't published yet it tries again next run. Otherwise it scores every player with <code>scoring.ts</code>, upserts <code>scores</code>, then inserts the results row.</li>
+  </ul>
 </section>
 
 <section>
   <div class="eyebrow">09 · Setup</div>
   <h2>Steps, in order</h2>
-  <p>This uses the same stack as <code>handsup</code>: Vite, TypeScript, <code>supabase-js</code> and CLI migrations. It goes in the <code>parc-ferme</code> repo.</p>
+  <p>Vue 3 + Vite + TypeScript + Vue Router in the <code>parc-ferme</code> repo, with the source in <code>app/</code> using Nuxt's folder names (<code>pages/</code>, <code>layouts/</code>, <code>composables/</code>). A later move to Nuxt only replaces <code>router.ts</code> and <code>main.ts</code>.</p>
   <ol class="steps">
     <li>
       <h3>Scaffold the frontend</h3>
-      <pre class="code">npm create vite@latest . -- --template vanilla-ts   <span class="c"># inside parc-ferme/</span>
-npm i @supabase/supabase-js</pre>
+      <pre class="code">npm i vue vue-router @supabase/supabase-js
+npm i -D vite @vitejs/plugin-vue typescript@^6 vue-tsc</pre>
+      <p>TypeScript stays on 6.x for now, because vue-tsc doesn't run on TypeScript 7 yet.</p>
     </li>
     <li>
-      <h3>Create the Supabase project and link it</h3>
-      <p>Create a project in the dashboard, then run the commands below. <code>supabase start</code> runs a local stack in Docker, which is safer to experiment on.</p>
+      <h3>Start the local Supabase stack</h3>
       <pre class="code">supabase init
-supabase link --project-ref &lt;your-project-ref&gt;
-supabase start            <span class="c"># optional: local stack</span></pre>
+mkdir -p supabase/snippets   <span class="c"># Rancher Desktop can't create Studio's mount folder itself</span>
+supabase start               <span class="c"># Docker must be running; the first run downloads images</span></pre>
+      <p>Studio is at <code>http://127.0.0.1:54323</code>. Magic-link emails land in the test inbox at <code>http://127.0.0.1:54324</code>. Linking the hosted project (<code>supabase link --project-ref …</code>) waits until you go live.</p>
     </li>
     <li>
       <h3>Put keys in <code>.env.local</code>, never in code</h3>
       <pre class="code"><span class="c"># TODO: Securely load this value from an environment variable or secrets vault. Do not hardcode.</span>
-VITE_SUPABASE_URL=&lt;project URL from dashboard&gt;
-VITE_SUPABASE_ANON_KEY=&lt;anon key from dashboard&gt;</pre>
-      <p>Only the anon key goes to the browser. The service role key stays on the server side, in Edge Functions and Vault.</p>
+VITE_SUPABASE_URL=&lt;API URL from supabase status or the dashboard&gt;
+VITE_SUPABASE_PUBLISHABLE_KEY=&lt;publishable key from supabase status or the dashboard&gt;</pre>
+      <p>Only the publishable key goes to the browser. The secret key stays on the server side, in Vault for the cron jobs.</p>
     </li>
     <li>
       <h3>Turn on Auth</h3>
-      <p>Under Authentication, set up the pieces from section 04:</p>
+      <p>Under Authentication in the hosted dashboard, set up the pieces from section 04:</p>
       <ul class="plain">
         <li><b>Providers:</b> enable Email and Google. Google needs an OAuth client from Google Cloud Console, with Supabase's callback URL as the authorised redirect URI.</li>
-        <li><b>URL Configuration:</b> add <code>http://localhost:5173/auth/callback</code> for development and the production URL later.</li>
+        <li><b>URL Configuration:</b> add the production <code>/auth/callback</code> URL. Locally, <code>supabase/config.toml</code> already allows <code>http://localhost:5173/auth/callback</code>.</li>
         <li><b>SMTP:</b> connect your own email provider. Supabase's built-in sender is for testing only and has a very low limit.</li>
         <li><b>Attack Protection:</b> turn on Turnstile. <b>Rate Limits:</b> keep the defaults to start.</li>
       </ul>
-      <p>The <code>handle_new_user</code> trigger goes into the first migration.</p>
     </li>
     <li>
-      <h3>Write the first migration</h3>
-      <pre class="code">supabase migration new init
-<span class="c"># tables: meetings, sessions, drivers, profiles, predictions, results</span>
-<span class="c"># views:  races, races_unscored, prediction_points, leaderboard</span>
-<span class="c"># RLS policies</span>
-supabase db push</pre>
+      <h3>Apply the migration</h3>
+      <pre class="code">supabase db reset   <span class="c"># local: rebuilds the database from supabase/migrations/</span>
+supabase db push    <span class="c"># hosted, once linked</span></pre>
+      <p>The <code>init</code> migration holds the seven tables, three views, RLS policies, the <code>handle_new_user</code> trigger and Realtime for <code>results</code>. pg_cron and pg_net come in a second migration with the cron jobs.</p>
     </li>
     <li>
-      <h3>Enable extensions and publish <code>results</code> for Realtime</h3>
-      <pre class="code">create extension if not exists pg_cron;
-create extension if not exists pg_net;
-alter publication supabase_realtime add table results;</pre>
+      <h3>Run the tests</h3>
+      <pre class="code">supabase test db        <span class="c"># database rules: lock, entry list, visibility, leaderboard</span>
+npm run test:scoring    <span class="c"># scoring rules in scoring.ts</span></pre>
     </li>
     <li>
-      <h3>Create and deploy both Edge Functions</h3>
-      <pre class="code">supabase functions new sync-calendar
-supabase functions new score-races
-supabase functions deploy sync-calendar
+      <h3>Run the Edge Functions locally, then deploy</h3>
+      <p><code>supabase start</code> serves both functions at <code>http://127.0.0.1:54321/functions/v1/&lt;name&gt;</code>. Call them with an <code>apikey</code> header holding the local secret key from <code>supabase status</code>. Check that <code>meetings</code>, <code>sessions</code> and <code>drivers</code> fill up and that the <code>races</code> view returns rows.</p>
+      <pre class="code">supabase functions deploy sync-calendar
 supabase functions deploy score-races</pre>
-      <p>Run <code>sync-calendar</code> once by hand (<code>supabase functions serve</code>, then curl it on localhost). Check that <code>meetings</code>, <code>sessions</code> and <code>drivers</code> fill up and that the <code>races</code> view returns rows.</p>
     </li>
     <li>
       <h3>Store secrets in Vault and schedule both cron jobs</h3>
-      <p>Store <code>project_url</code> and <code>service_key</code> with <code>select vault.create_secret('&lt;value&gt;', '&lt;name&gt;')</code> in the SQL editor, pasting the values in there rather than into any file. Then run both <code>cron.schedule</code> statements from section 08.</p>
+      <p>Store <code>project_url</code> and <code>secret_key</code> with <code>select vault.create_secret('&lt;value&gt;', '&lt;name&gt;')</code> in the SQL editor, pasting the values there rather than into any file. Then run both <code>cron.schedule</code> statements from section 08.</p>
+      <p>In dev, <code>project_url</code> is not <code>127.0.0.1</code>: the database runs inside Docker and reaches the functions through Docker's internal network.</p>
     </li>
     <li>
       <h3>Test scoring against a past race</h3>
-      <p>Let <code>sync-calendar</code> accept optional <code>from</code> and <code>to</code> dates for testing, and point it at a 2025 weekend. Enter a few picks by hand. The 2-day cutoff will exclude an old race, so call <code>score-races</code> directly. You get the whole flow working without waiting for a race weekend.</p>
+      <p>POST a 2025 date window to <code>sync-calendar</code>, enter a few picks by hand, then call <code>score-races</code>. The 2-day cutoff in <code>races_unscored</code> excludes an old race, so for this test, adjust the race's <code>date_end</code> or call the scoring directly. You get the whole flow working without waiting for a race weekend.</p>
     </li>
     <li>
-      <h3>Build the three screens</h3>
-      <p>Sign in, the next race's pick form (dropdowns in team colours, with a countdown to <code>lock_at</code>), and the leaderboard, subscribed to <code>results</code> inserts.</p>
+      <h3>Build the eight screens</h3>
+      <p>Sign in, create account, check your email, picks (with a countdown to <code>lock_at</code>), the driver picker, picks locked, the leaderboard (subscribed to <code>results</code> inserts) and profile. The mockups are in <code>design/mockups.html</code> (mobile) and <code>design/desktop.html</code>.</p>
     </li>
   </ol>
 </section>
@@ -670,12 +635,12 @@ supabase functions deploy score-races</pre>
   <div class="eyebrow">10 · Before you build</div>
   <h2>Things to check</h2>
   <ul class="plain">
-    <li><b>Whether OpenF1 lists future sessions.</b> The weekly sync assumes <code>/meetings?date_start&gt;=&lt;today&gt;</code> returns upcoming weekends. Check this first. If only past sessions are listed, the calendar has to come from somewhere else.</li>
+    <li><b>OpenF1 lists future weekends. Confirmed.</b> <code>/meetings</code> returns upcoming meetings, and <code>/drivers?meeting_key=…</code> returns the entry list before the weekend starts.</li>
     <li><b>How soon free data appears.</b> OpenF1 only charges for <em>live</em> data. Historical data is free, but the docs don't say how soon after a race it's published. Per-minute checks until then cost nothing, and after 2 days the race is dropped from <code>races_unscored</code>.</li>
-    <li><b>Picks open on Monday of race week.</b> The pick form needs the race's sessions (for <code>lock_at</code>) and its entry list, and both are fetched that Monday. Before then, the weekend shows as coming soon.</li>
-    <li><b>A failed Monday run.</b> If it fails, that weekend has no sessions and no pick form. The job is safe to re-run, so run it by hand. Or schedule it daily: each run is about 3 requests.</li>
+    <li><b>Picks open when the entry list is published.</b> The pick form needs the race's sessions (for <code>lock_at</code>) and its entry list. Sessions are fetched once the weekend is within 7 days. OpenF1 publishes entry lists at different times: Singapore 2026 had one 2 weeks ahead, the 2 Oct 2026 weekend had none 5 days ahead. That's why the sync runs daily (about 3 requests a day).</li>
+    <li><b>OpenF1 answers 404 when nothing matches.</b> Not an empty list. Both functions treat a 404 as "no rows yet".</li>
     <li><b>Late entry-list changes.</b> If a reserve driver is announced on Thursday, they won't be in the picker until <code>sync-calendar</code> runs again. The same manual re-run covers this.</li>
-    <li><b>Disqualifications after the race.</b> A result row is written once. If the stewards change the result within 2 days, delete the row and the next minute scores the race again. After that, call <code>score-races</code> by hand.</li>
+    <li><b>Disqualifications after the race.</b> A result row is written once. If the stewards change the result within 2 days, delete the results row: the leaderboard stops counting that race, and the next minute rescores it and overwrites <code>scores</code>. After 2 days, call <code>score-races</code> by hand.</li>
     <li><b>Email delivery limits.</b> Check your SMTP provider's free tier and sender-domain setup (SPF and DKIM) early. Magic links that land in spam look like a broken sign-in.</li>
     <li><b>Leagues.</b> This plan has one global leaderboard. Private leagues for different friend groups would need a <code>leagues</code> table plus a membership table, and an extra condition in each policy. Add them only if you need them.</li>
   </ul>
