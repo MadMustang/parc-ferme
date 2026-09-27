@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parc Fermé Desktop Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Same design bible as mockups.html (mobile). */
+:root {
+  color-scheme: dark;
+  --canvas: #08090b;
+  --bg: #0e0f12;
+  --surface: #16181d;
+  --surface-2: #1d2026;
+  --line: #262a31;
+  --ink: #eceef1;
+  --muted: #8a909b;
+  --faint: #5c626d;
+  --purple: #a55cff;
+  --green: #2fd27a;
+  --yellow: #f2c230;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  --check: conic-gradient(#eceef1 25%, transparent 0 50%, #eceef1 0 75%, transparent 0);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.5 var(--body); }
+.page { max-width: 1360px; margin: 0 auto; padding: 48px 24px 96px; display: grid; gap: 56px; }
+.page-head { display: grid; gap: 12px; max-width: 760px; }
+.page-head h1 { margin: 0; font: 700 44px/1 var(--display); text-transform: uppercase; }
+.page-head p { margin: 0; color: var(--muted); }
+.page-head a { color: var(--ink); }
+figure { margin: 0; display: grid; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+figcaption { display: grid; gap: 2px; max-width: 900px; }
+figcaption b { font: 600 18px var(--display); text-transform: uppercase; letter-spacing: .02em; }
+figcaption span { color: var(--muted); font-size: 13px; }
+
+/* ---------- browser window ---------- */
+.win { width: 1280px; height: 800px; flex: none; border-radius: 14px; overflow: hidden; border: 1px solid #2c2f36; box-shadow: 0 40px 80px -30px #000d; display: flex; flex-direction: column; background: var(--bg) var(--grain); position: relative; }
+.chrome { height: 40px; flex: none; background: #15171b; border-bottom: 1px solid #24272d; display: flex; align-items: center; gap: 16px; padding: 0 16px; }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #3a3d44; }
+.url { flex: 0 1 460px; margin: 0 auto; height: 26px; border-radius: 7px; background: #0e0f12; border: 1px solid #24272d; display: flex; align-items: center; justify-content: center; font: 12px var(--mono); color: var(--muted); }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+/* ---------- shared ---------- */
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.title { margin: 0; font: 700 56px/.95 var(--display); text-transform: uppercase; }
+.sub { color: var(--muted); font-size: 15px; margin: 0; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 6px 9px; border-radius: 6px; border: 1px solid currentColor; }
+.pill.open { color: var(--green); }
+.pill.lock { color: var(--yellow); }
+.pill.live { color: var(--green); border-color: transparent; background: #2fd27a1a; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.label { font: 600 13px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.label em { font-style: normal; color: var(--faint); letter-spacing: .04em; }
+.btn { height: 50px; border-radius: 12px; border: 0; font: 600 15px var(--body); display: flex; align-items: center; justify-content: center; gap: 12px; }
+.btn.primary { background: var(--ink); color: #0e0f12; }
+.btn.ghost { border: 1px solid var(--line); color: var(--ink); }
+.gbtn { background: #131314; color: #e3e3e3; border: 1px solid #8e918f; font-weight: 500; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--faint); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.field { display: grid; gap: 8px; }
+.field label { font-size: 13px; color: var(--muted); }
+.input { height: 50px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); padding: 0 16px; display: flex; align-items: center; font-size: 15px; }
+.input.ph { color: var(--faint); }
+.caret { width: 2px; height: 20px; background: var(--purple); margin-left: 2px; }
+.hint { font-size: 13px; color: var(--faint); }
+.fine { font-size: 14px; color: var(--faint); text-align: center; }
+.link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--faint); }
+.drv { display: inline-flex; align-items: center; gap: 7px; font: 700 14px var(--mono); }
+.drv i { width: 4px; height: 16px; border-radius: 2px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+
+/* ---------- auth split ---------- */
+.split { flex: 1; display: grid; grid-template-columns: 1fr 520px; }
+.art { position: relative; overflow: hidden; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: flex-end; padding: 44px 48px; }
+.art::before { content: ""; position: absolute; inset: 0; background:
+  linear-gradient(#ffffff07 1px, transparent 1px) 0 0 / 100% 32px,
+  linear-gradient(90deg, #ffffff07 1px, transparent 1px) 0 0 / 32px 100%; }
+.art .checker { position: absolute; top: 44px; left: 0; right: 0; height: 16px; background: var(--check) 0 0 / 16px 16px; opacity: .85; }
+.circuit { position: absolute; top: 72px; left: 90px; width: 580px; height: auto; }
+.artfoot { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.wordmark { position: relative; margin: 0; font: 700 100px/.84 var(--display); text-transform: uppercase; letter-spacing: -.01em; }
+.wordmark span { color: var(--purple); }
+.art p { position: relative; max-width: 360px; font-size: 17px; color: #b6bbc4; margin: 0; }
+.preview { flex: none; width: 236px; padding: 16px 18px; border-radius: 16px; background: #16181dee; border: 1px solid var(--line); box-shadow: 0 20px 40px -12px #000a; display: grid; gap: 10px; }
+.preview b { font: 700 24px/1 var(--display); text-transform: uppercase; }
+.pv-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.pv-row strong { font: 700 15px var(--mono); color: var(--ink); }
+.form { display: flex; flex-direction: column; justify-content: center; gap: 20px; padding: 0 64px; }
+.form h2 { margin: 0; font: 700 44px/1 var(--display); text-transform: uppercase; }
+
+/* ---------- app shell ---------- */
+.appbar { height: 64px; flex: none; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 40px; padding: 0 40px; }
+.brand { font: 700 24px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+.brand span { color: var(--purple); }
+.nav { display: flex; gap: 28px; height: 100%; }
+.nav span { display: flex; align-items: center; font-weight: 500; color: var(--faint); border-bottom: 2px solid transparent; }
+.nav span.on { color: var(--ink); border-color: var(--ink); }
+.appbar .right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 600; }
+.avatar.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 360px; gap: 40px; padding: 32px 40px; }
+.col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.racehead { display: flex; justify-content: space-between; align-items: flex-end; }
+.racehead .t { display: grid; gap: 10px; }
+
+.countdown { border-radius: 16px; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden; background: linear-gradient(120deg, #1a1c21, #121418); border: 1px solid var(--line); }
+.countdown::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 220px; opacity: .08; background: var(--check) 0 0 / 22px 22px; -webkit-mask-image: linear-gradient(90deg, transparent, #000); mask-image: linear-gradient(90deg, transparent, #000); }
+.countdown .l { display: grid; gap: 8px; }
+.digits { display: flex; gap: 16px; align-items: baseline; font: 700 44px/1 var(--mono); letter-spacing: -.02em; }
+.digits small { font: 500 16px var(--mono); color: var(--muted); margin-left: 3px; }
+
+/* podium: P2 | P1 | P3 like the real thing */
+.podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: end; }
+.step { border-radius: 16px 16px 10px 10px; background: var(--surface); border: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+.step.h1 { height: 186px; } .step.h2 { height: 160px; } .step.h3 { height: 140px; }
+.step .pos { font: 700 34px/1 var(--display); color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; }
+.step .pos em { font: 500 12px var(--mono); font-style: normal; color: var(--faint); }
+.step .who { display: grid; gap: 2px; }
+.step .who b { font: 700 22px var(--mono); display: flex; gap: 10px; align-items: center; }
+.step .who b i { width: 5px; height: 22px; border-radius: 2px; }
+.step .who span { font-size: 13px; color: var(--muted); }
+.step.empty { background: transparent; border: 1px dashed #3a3f48; }
+.step.empty .who b { font: 500 16px var(--body); color: var(--muted); }
+.bonus { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pick { height: 64px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 14px; padding-right: 16px; overflow: hidden; }
+.pick .pos { height: 100%; display: grid; place-items: center; font: 700 13px var(--mono); color: var(--muted); border-right: 1px solid var(--line); }
+.pick .who { display: grid; }
+.pick .who b { font: 700 17px var(--mono); display: flex; gap: 8px; align-items: center; }
+.pick .who b i { width: 4px; height: 18px; border-radius: 2px; }
+.pick .who span { font-size: 13px; color: var(--muted); }
+.pick .pts { font: 500 13px var(--mono); color: var(--faint); }
+.pick.empty { background: transparent; border-style: dashed; border-color: #3a3f48; }
+.pick.empty .who b { font: 500 15px var(--body); color: var(--muted); }
+.saved { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.saved .dot { color: var(--green); }
+
+/* side rail */
+.rail { display: flex; flex-direction: column; gap: 16px; }
+.sched { padding: 6px 0; }
+.srow { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.srow:last-child { border-bottom: 0; }
+.srow b { font-weight: 600; font-size: 15px; }
+.srow span { font: 500 13px var(--mono); color: var(--muted); text-align: right; }
+.srow small { grid-column: 1 / -1; font-size: 12px; color: var(--faint); }
+.srow.lock { box-shadow: inset 3px 0 0 var(--yellow); }
+.srow.lock small { color: var(--yellow); }
+.srow.done b, .srow.done span { color: var(--faint); }
+.rules { padding: 16px 18px; display: grid; gap: 10px; }
+.rules div { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+.rules div b { font: 600 14px var(--mono); color: var(--ink); }
+.rules .tot { border-top: 1px solid var(--line); padding-top: 10px; color: var(--ink); font-weight: 600; }
+
+/* modal picker */
+.dim { position: absolute; inset: 0; background: #000000b3; z-index: 5; }
+.modal { position: absolute; z-index: 6; left: 50%; top: 56px; transform: translateX(-50%); width: 820px; border-radius: 20px; background: var(--surface); border: 1px solid #2e323a; box-shadow: 0 40px 80px -20px #000; padding: 26px 28px; display: grid; gap: 18px; }
+.modal .mh { display: flex; justify-content: space-between; align-items: flex-start; }
+.modal h3 { margin: 0; font: 700 34px/1 var(--display); text-transform: uppercase; }
+.x { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--muted); }
+.search { height: 46px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--faint); }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+.team { display: grid; gap: 6px; }
+.team > span { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chip { height: 48px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: center; padding: 0 12px 0 0; overflow: hidden; }
+.chip i { height: 100%; }
+.chip b { font-weight: 600; font-size: 14px; }
+.chip em { font: 500 12px var(--mono); font-style: normal; color: var(--faint); }
+.chip.taken { opacity: .4; }
+.chip.sel { border-color: var(--ink); background: #eceef10f; }
+.chip.sel em { color: var(--ink); }
+
+/* tables */
+.lockcard { border-radius: 16px; padding: 16px 20px; border: 1px solid #f2c23055; background: linear-gradient(120deg, #f2c2300f, transparent 60%); display: flex; justify-content: space-between; align-items: center; }
+.lockcard p { margin: 0; font-size: 16px; }
+.tbl { border-top: 1px solid var(--line); }
+.tr { display: grid; align-items: center; height: 50px; padding: 0 16px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.tr.th { height: 38px; font: 500 12px var(--mono); letter-spacing: .08em; color: var(--faint); text-transform: uppercase; }
+.picks .tr { grid-template-columns: 1.4fr repeat(5, 1fr) 80px; }
+.tr.me { background: #eceef10a; box-shadow: inset 3px 0 0 var(--ink); }
+.tr .p { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.mini { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.num { font: 500 14px var(--mono); color: var(--muted); text-align: right; }
+.board .tr { grid-template-columns: 56px 1.6fr 70px 1fr 1fr 110px; height: 56px; }
+.rk { font: 700 18px var(--mono); color: var(--muted); }
+.mv { font: 500 12px var(--mono); }
+.mv.up { color: var(--green); } .mv.dn { color: #ff6b6b; }
+.last { justify-self: start; font: 500 14px var(--mono); color: var(--muted); padding: 3px 8px; border-radius: 6px; }
+.last.best { color: var(--purple); background: #a55cff1f; }
+.tot { font: 700 22px var(--mono); text-align: right; }
+.seg { display: inline-grid; grid-template-columns: auto auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+.seg span { height: 36px; padding: 0 18px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; color: var(--muted); font-weight: 500; }
+.seg span.on { background: var(--surface-2); color: var(--ink); }
+.reslist .srow b { display: flex; gap: 10px; align-items: center; }
+.stat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat2 .card { padding: 14px 16px; display: grid; gap: 4px; }
+.stat2 span { font-size: 12px; color: var(--muted); }
+.stat2 b { font: 700 20px var(--mono); display: flex; align-items: center; gap: 10px; }
+
+/* profile */
+.prof { flex: 1; min-height: 0; width: 880px; margin: 0 auto; padding: 36px 0; display: flex; flex-direction: column; gap: 28px; }
+.pid { display: flex; align-items: center; gap: 24px; }
+.avatar-lg { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font: 700 42px var(--display); background: var(--surface-2); box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--purple); }
+.pid .t { display: grid; gap: 6px; }
+.pid h2 { margin: 0; font: 700 44px/1 var(--display); text-transform: uppercase; }
+.stats3 { margin-left: auto; display: grid; grid-template-columns: repeat(3, 120px); border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.stats3 div { padding: 14px 16px; display: grid; gap: 2px; }
+.stats3 div + div { border-left: 1px solid var(--line); }
+.stats3 span { font-size: 12px; color: var(--muted); }
+.stats3 b { font: 700 24px var(--mono); }
+.groups { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.group { display: grid; gap: 10px; }
+.cells { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.cell { height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 18px; }
+.cell + .cell { border-top: 1px solid var(--line); }
+.cell .v { color: var(--muted); display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.chev { color: var(--faint); }
+.actions { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 24px; }
+.danger { color: #ff6b6b; font-weight: 500; font-size: 14px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="g-logo" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></symbol></svg>
+
+<div class="page">
+
+<header class="page-head">
+  <div class="eyebrow">Iteration 1 · desktop · local mockups</div>
+  <h1>Parc Fermé on desktop</h1>
+  <p>The same eight screens as the <a href="mockups.html">mobile mockups</a>, laid out for a 1280 × 800 browser window. The drivers, team colours and Singapore GP schedule are real OpenF1 data. The players, picks and results are example data.</p>
+</header>
+
+<!-- D1 SIGN IN -->
+<figure>
+  <figcaption><b>1 · Sign in</b><span>The left half shows an illustrated circuit, coloured by sector like a timing screen, and a preview card of the next race. The form sits on the right. Create account and check your email use the same layout, so switching between them doesn't jump around.</span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/sign-in</div></div>
+    <div class="view"><div class="split">
+      <div class="art" data-art></div>
+      <div class="form">
+        <div style="display:grid;gap:8px"><span class="eyebrow">Welcome back</span><h2>Sign in</h2></div>
+        <div class="btn gbtn"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><use href="#g-logo"/></svg>Continue with Google</div>
+        <div class="or">or</div>
+        <div class="field"><label for="d1-email">Email</label><div class="input ph" id="d1-email">you@example.com</div></div>
+        <div class="btn primary">Email me a sign-in link</div>
+        <div class="fine">New here? <span class="link">Create an account</span></div>
+      </div>
+    </div></div>
+  </div>
+</figure>
+
+<!-- D2 CREATE ACCOUNT -->
+<figure>
+  <figcaption><b>2 · Create account</b><span>Display name first, because it's what the leaderboard shows. With Google, the name comes from the Google account.</span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/join</div></div>
+    <div class="view"><div class="split">
+      <div class="art" data-art></div>
+      <div class="form">
+        <div style="display:grid;gap:8px"><span class="eyebrow">Join the league</span><h2>Create account</h2></div>
+        <div class="btn gbtn"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><use href="#g-logo"/></svg>Sign up with Google</div>
+        <div class="or">or</div>
+        <div class="field"><label for="d2-name">Display name</label><div class="input" id="d2-name" style="border-color:var(--ink)">Dimas<span class="caret"></span></div><span class="hint">This is what the leaderboard shows. You can change it later.</span></div>
+        <div class="field"><label for="d2-email">Email</label><div class="input ph" id="d2-email">you@example.com</div></div>
+        <div class="btn primary">Email me a link to finish</div>
+        <div class="fine">Already have an account? <span class="link">Sign in</span></div>
+      </div>
+    </div></div>
+  </div>
+</figure>
+
+<!-- D3 CHECK EMAIL -->
+<figure>
+  <figcaption><b>3 · Check your email</b><span>Same layout as the two forms. The link signs in whichever device opens it, so the copy asks people to open it here.</span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/check-email</div></div>
+    <div class="view"><div class="split">
+      <div class="art" data-art></div>
+      <div class="form">
+        <div style="width:84px;height:84px;border-radius:22px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center">
+          <svg width="42" height="42" viewBox="0 0 46 46" fill="none" stroke="#eceef1" stroke-width="2.4" stroke-linejoin="round"><rect x="5" y="10" width="36" height="26" rx="4"/><path d="M6 12l17 13 17-13"/><rect x="30" y="4" width="4" height="4" fill="#eceef1" stroke="none"/><rect x="34" y="8" width="4" height="4" fill="#eceef1" stroke="none"/><rect x="38" y="4" width="4" height="4" fill="#eceef1" stroke="none"/></svg>
+        </div>
+        <h2>Check your email</h2>
+        <p class="sub" style="font-size:16px;color:#b6bbc4">We sent a sign-in link to <b style="color:var(--ink);font-weight:600">dimas@example.com</b>. Open it on this device. It expires in 1 hour.</p>
+        <div class="btn ghost" style="color:var(--muted)">Resend link in 0:42</div>
+        <div class="fine"><span class="link">Use a different email</span></div>
+      </div>
+    </div></div>
+  </div>
+</figure>
+
+<!-- D4 PICKS -->
+<figure>
+  <figcaption><b>4 · Your picks</b><span>With more width, the podium picks are laid out like a real podium, P2 · P1 · P3. The right-hand column shows the weekend's schedule, so you can see exactly when picks lock.</span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/picks</div></div>
+    <div class="view" id="d4">
+      <div data-appbar="Picks"></div>
+      <div class="main">
+        <div class="col">
+          <div class="racehead">
+            <div class="t"><span class="eyebrow">Sprint weekend · 9–11 Oct</span><h2 class="title">Singapore GP</h2><p class="sub">Marina Bay</p></div>
+            <div class="saved"><span class="dot"></span>3 of 5 picked · saved</div>
+          </div>
+          <div class="countdown">
+            <div class="l"><span class="eyebrow">Picks lock in</span><div class="digits">13<small>d</small> 01<small>h</small> 12<small>m</small></div></div>
+            <span class="pill open"><span class="dot"></span>Open</span>
+          </div>
+          <div style="display:grid;gap:12px">
+            <div class="label">Podium <em>1 pt each on the podium · bonus for the exact position</em></div>
+            <div class="podium">
+              <div class="step h2"><div class="pos">P2 <em>+2 exact</em></div><div class="who"><b><i style="background:#4781D7"></i>VER</b><span>Max Verstappen · Red Bull Racing</span></div></div>
+              <div class="step h1"><div class="pos">P1 <em>+4 exact</em></div><div class="who"><b><i style="background:#F47600"></i>NOR</b><span>Lando Norris · McLaren</span></div></div>
+              <div class="step h3 empty"><div class="pos">P3 <em>+2 exact</em></div><div class="who"><b>Choose a driver ›</b></div></div>
+            </div>
+          </div>
+          <div style="display:grid;gap:12px">
+            <div class="label">Bonus <em>2 pts each</em></div>
+            <div class="bonus">
+              <div class="pick"><span class="pos">POLE</span><span class="who"><b><i style="background:#ED1131"></i>LEC</b><span>Charles Leclerc · Ferrari</span></span><span class="pts">+2</span></div>
+              <div class="pick empty"><span class="pos">FL</span><span class="who"><b>Fastest lap</b></span><span class="pts">›</span></div>
+            </div>
+          </div>
+        </div>
+        <aside class="rail">
+          <div class="label">This weekend <em>UTC</em></div>
+          <div class="card sched" data-sched="open"></div>
+          <div class="label">Scoring</div>
+          <div class="card rules">
+            <div>Each driver on the podium<b>1</b></div>
+            <div>Exact P1<b>+4</b></div>
+            <div>Exact P2, exact P3<b>+2 each</b></div>
+            <div>Pole, fastest lap<b>2 each</b></div>
+            <div class="tot">Perfect weekend<b>15</b></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<!-- D5 PICKER -->
+<figure>
+  <figcaption><b>5 · Choose a driver</b><span>On desktop the picker is a dialog, with the whole grid visible and grouped by team. Drivers already in your podium picks are greyed out and labelled with the position you gave them.</span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/picks</div></div>
+    <div class="view" id="d5"></div>
+  </div>
+</figure>
+
+<!-- D6 LOCKED -->
+<figure>
+  <figcaption><b>6 · Picks locked</b><span>Once qualifying starts, everyone's picks appear in one table. The side column counts down to the race. <i>Example players.</i></span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/picks</div></div>
+    <div class="view">
+      <div data-appbar="Picks"></div>
+      <div class="main">
+        <div class="col">
+          <div class="racehead"><div class="t"><span class="eyebrow">Sprint weekend · 9–11 Oct</span><h2 class="title">Singapore GP</h2></div></div>
+          <div class="lockcard">
+            <p><span class="pill lock" style="margin-right:12px"><svg width="11" height="12" viewBox="0 0 11 12" fill="currentColor"><path d="M2 5V3.5a3.5 3.5 0 017 0V5h1v7H1V5h1zm1.5 0h4V3.5a2 2 0 00-4 0V5z"/></svg>Locked</span>Qualifying has started. Here's what everyone picked.</p>
+            <span class="sub" style="font:500 14px var(--mono)">Race in 22h 58m</span>
+          </div>
+          <div class="tbl picks" id="picks-table"></div>
+        </div>
+        <aside class="rail">
+          <div class="label">This weekend <em>UTC</em></div>
+          <div class="card sched" data-sched="locked"></div>
+          <div class="stat2">
+            <div class="card"><span>Most picked to win</span><b><span class="drv"><i style="background:#F47600"></i>NOR</span><span style="font:500 13px var(--mono);color:var(--muted)">3 of 6</span></b></div>
+            <div class="card"><span>Most picked for pole</span><b><span class="drv"><i style="background:#ED1131"></i>LEC</span><span style="font:500 13px var(--mono);color:var(--muted)">3 of 6</span></b></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<!-- D7 LEADERBOARD -->
+<figure>
+  <figcaption><b>7 · Leaderboard</b><span>Desktop has room for more columns: position change, this race's points, best race and total. The race result sits alongside. <i>Example result and players.</i></span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/leaderboard</div></div>
+    <div class="view">
+      <div data-appbar="Leaderboard"></div>
+      <div class="main">
+        <div class="col">
+          <div class="racehead">
+            <div class="t"><span class="eyebrow">Season 2026</span><h2 class="title">Leaderboard</h2></div>
+            <div style="display:flex;gap:16px;align-items:center"><span class="pill live"><span class="dot"></span>Singapore GP just scored</span><div class="seg"><span class="on">Season</span><span>Singapore GP</span></div></div>
+          </div>
+          <div class="tbl board" id="board"></div>
+        </div>
+        <aside class="rail">
+          <div class="label">Singapore GP result</div>
+          <div class="card sched reslist" id="result"></div>
+          <div class="stat2">
+            <div class="card"><span>Top score this race</span><b style="color:var(--purple)">Sarah · 13</b></div>
+            <div class="card"><span>League average</span><b>6.5</b></div>
+          </div>
+          <div class="fine" style="text-align:left">Up to 15 points per race</div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<!-- D8 PROFILE -->
+<figure>
+  <figcaption><b>8 · Profile</b><span>Opens from the avatar. Your identity and season stats sit across the top, with the settings in two columns below. <i>Example stats.</i></span></figcaption>
+  <div class="win">
+    <div class="chrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">parcferme.example.com/profile</div></div>
+    <div class="view">
+      <div data-appbar="" data-avatar-on></div>
+      <div class="prof">
+        <div class="pid">
+          <div class="avatar-lg">D</div>
+          <div class="t"><h2>Dimas</h2><p class="sub">dimas@example.com</p></div>
+          <div class="stats3"><div><span>Position</span><b>P2</b></div><div><span>Points</span><b>151</b></div><div><span>Best race</span><b style="color:var(--purple)">13</b></div></div>
+        </div>
+        <div class="groups">
+          <div class="group">
+            <div class="label">Account</div>
+            <div class="cells">
+              <div class="cell"><span>Display name</span><span class="v">Dimas <span class="chev">›</span></span></div>
+              <div class="cell"><span>Email</span><span class="v">dimas@example.com</span></div>
+              <div class="cell"><span>Signed in with</span><span class="v"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><use href="#g-logo"/></svg>Google</span></div>
+            </div>
+          </div>
+          <div class="group">
+            <div class="label">Display</div>
+            <div class="cells">
+              <div class="cell"><span>Show times in</span><span class="v">This device's time zone <span class="chev">›</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="actions"><div class="btn ghost" style="padding:0 28px">Sign out</div><span class="danger">Delete account</span></div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+</div>
+
+<script>
+// Real 2026 grid from OpenF1 /drivers?session_key=latest (session 11377), in team pairs.
+const D = {
+  NOR: [1, "Lando Norris", "McLaren", "F47600"],     PIA: [81, "Oscar Piastri", "McLaren", "F47600"],
+  RUS: [63, "George Russell", "Mercedes", "00D7B6"], ANT: [12, "Kimi Antonelli", "Mercedes", "00D7B6"],
+  VER: [3, "Max Verstappen", "Red Bull Racing", "4781D7"], HAD: [6, "Isack Hadjar", "Red Bull Racing", "4781D7"],
+  LEC: [16, "Charles Leclerc", "Ferrari", "ED1131"], HAM: [44, "Lewis Hamilton", "Ferrari", "ED1131"],
+  ALB: [23, "Alexander Albon", "Williams", "1868DB"], SAI: [55, "Carlos Sainz", "Williams", "1868DB"],
+  LAW: [30, "Liam Lawson", "Racing Bulls", "6C98FF"], LIN: [41, "Arvid Lindblad", "Racing Bulls", "6C98FF"],
+  ALO: [14, "Fernando Alonso", "Aston Martin", "229971"], STR: [18, "Lance Stroll", "Aston Martin", "229971"],
+  OCO: [31, "Esteban Ocon", "Haas F1 Team", "9C9FA2"], BEA: [87, "Oliver Bearman", "Haas F1 Team", "9C9FA2"],
+  HUL: [27, "Nico Hulkenberg", "Audi", "F50537"], BOR: [5, "Gabriel Bortoleto", "Audi", "F50537"],
+  GAS: [10, "Pierre Gasly", "Alpine", "00A1E8"], COL: [43, "Franco Colapinto", "Alpine", "00A1E8"],
+  PER: [11, "Sergio Perez", "Cadillac", "909090"], BOT: [77, "Valtteri Bottas", "Cadillac", "909090"],
+};
+const drv = (a) => `<span class="drv"><i style="background:#${D[a][3]}"></i>${a}</span>`;
+const $ = (s) => document.querySelectorAll(s);
+
+// Auth artwork: an illustrated circuit, coloured by sector like a timing screen, plus a preview of the product
+const S1 = "M140 370 H480 C540 370 570 340 568 290 L562 210";
+const S2 = "M562 210 C560 170 530 150 495 160 L380 195 C345 205 330 185 340 155 L360 105 C372 75 350 55 320 60 L200 80";
+const S3 = "M200 80 C160 87 130 115 128 150 L118 300 C115 345 120 370 140 370";
+const car = (x, y, a, dx = 14, dy = -12) =>
+  `<circle cx="${x}" cy="${y}" r="8" fill="#${D[a][3]}" stroke="#0e0f12" stroke-width="3"/>
+   <g transform="translate(${x + dx} ${y + dy})"><rect x="0" y="-13" width="46" height="22" rx="5" fill="#0e0f12" stroke="#2c3038"/><text x="23" y="3" text-anchor="middle" fill="#eceef1" font-family="JetBrains Mono, monospace" font-weight="700" font-size="12">${a}</text></g>`;
+const circuit = `<svg class="circuit" viewBox="60 20 580 400" aria-label="Illustrated circuit">
+  <path d="${S1} ${S2.slice(9)} ${S3.slice(8)}" fill="none" stroke="#ffffff10" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="${S1} ${S2.slice(9)} ${S3.slice(8)}" fill="none" stroke="#1f2228" stroke-width="18" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="${S1}" fill="none" stroke="#a55cff" stroke-width="4" stroke-linecap="round"/>
+  <path d="${S2}" fill="none" stroke="#2fd27a" stroke-width="4" stroke-linecap="round"/>
+  <path d="${S3}" fill="none" stroke="#f2c230" stroke-width="4" stroke-linecap="round"/>
+  <g>${[0, 1, 2, 3].map((r) => [0, 1].map((c) => `<rect x="${296 + c * 5}" y="${360 + r * 5}" width="5" height="5" fill="${(r + c) % 2 ? "#0e0f12" : "#eceef1"}"/>`).join("")).join("")}</g>
+  <g font-family="JetBrains Mono, monospace" font-size="12" fill="#8a909b" letter-spacing="1.5">
+    <text x="330" y="404">S1</text><text x="420" y="232">S2</text><text x="92" y="230">S3</text>
+  </g>
+  ${car(568, 262, "NOR")}${car(430, 181, "VER", 12, -16)}${car(124, 214, "LEC", 14, 4)}
+</svg>`;
+$("[data-art]").forEach((el) => el.innerHTML =
+  `<div class="checker"></div>${circuit}
+   <div class="artfoot">
+     <div style="display:grid;gap:16px"><h1 class="wordmark">Parc<br>Ferm<span>é</span></h1>
+       <p>Call the podium before qualifying. After that, your picks are locked, just like the cars.</p></div>
+     <div class="preview">
+       <span class="eyebrow">Next race</span>
+       <b>Singapore GP</b>
+       <div class="pv-row"><span>Picks lock in</span><strong>13d 01h</strong></div>
+       <div class="pv-row"><span>Your P1</span>${drv("NOR")}</div>
+     </div>
+   </div>`);
+
+// App bar, shared by the signed-in screens
+$("[data-appbar]").forEach((el) => {
+  const tab = el.dataset.appbar;
+  el.outerHTML = `<header class="appbar"><span class="brand">Parc Ferm<span>é</span></span>
+    <nav class="nav"><span class="${tab === "Picks" ? "on" : ""}">Picks</span><span class="${tab === "Leaderboard" ? "on" : ""}">Leaderboard</span></nav>
+    <div class="right"><span class="eyebrow">Next · Singapore GP</span><div class="avatar${el.hasAttribute("data-avatar-on") ? " on" : ""}">D</div></div></header>`;
+});
+
+// Real Singapore GP 2026 sessions from OpenF1 /sessions?meeting_key=1296
+const sessions = [
+  ["Practice 1", "Fri 9 Oct", "08:30"],
+  ["Sprint Qualifying", "Fri 9 Oct", "12:30", "Doesn't count for pole"],
+  ["Sprint", "Sat 10 Oct", "09:00"],
+  ["Qualifying", "Sat 10 Oct", "13:00", "Picks lock", "lock"],
+  ["Race", "Sun 11 Oct", "12:00", "Scored when results are published"],
+];
+$("[data-sched]").forEach((el) => {
+  const locked = el.dataset.sched === "locked";
+  el.innerHTML = sessions.map(([n, d, t, note, cls], i) => {
+    const done = locked && i < 4;
+    const c = [cls, done && i < 3 ? "done" : ""].filter(Boolean).join(" ");
+    const txt = cls === "lock" && locked ? "Picks locked" : note;
+    return `<div class="srow ${c}"><b>${n}</b><span>${d} · ${t}</span>${txt ? `<small>${txt}</small>` : ""}</div>`;
+  }).join("");
+});
+
+// D5: picks screen behind a dimmed dialog
+const d4 = document.getElementById("d4");
+const d5 = document.getElementById("d5");
+d5.innerHTML = d4.innerHTML;
+const taken = { NOR: "P1", VER: "P2" };
+const keys = Object.keys(D);
+const teams = [];
+for (let i = 0; i < keys.length; i += 2) teams.push([D[keys[i]][2], keys[i], keys[i + 1]]);
+d5.insertAdjacentHTML("beforeend", `<div class="dim"></div><div class="modal">
+  <div class="mh"><div style="display:grid;gap:8px"><h3>Choose P3</h3><p class="sub">1 point if they're on the podium, plus 2 if they finish exactly P3.</p></div><div class="x">✕</div></div>
+  <div class="search"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="5.5"/><path d="M12.5 12.5L16 16" stroke-linecap="round"/></svg>Search driver or team</div>
+  <div class="teams">${teams.map(([team, a, b]) => `<div class="team"><span>${team}</span><div class="pair">${[a, b].map((k) => {
+    const cls = taken[k] ? "chip taken" : k === "LEC" ? "chip sel" : "chip";
+    const tag = taken[k] || (k === "LEC" ? "✓" : D[k][0]);
+    return `<div class="${cls}"><i style="background:#${D[k][3]}"></i><b>${D[k][1]}</b><em>${tag}</em></div>`;
+  }).join("")}</div></div>`).join("")}</div>
+</div>`);
+
+// Example picks: P1 P2 P3 POLE FL (same as mobile)
+const picks = [
+  ["You",   "NOR", "VER", "LEC", "LEC", "PIA"],
+  ["Sarah", "NOR", "LEC", "VER", "NOR", "VER"],
+  ["Kenji", "VER", "NOR", "PIA", "VER", "NOR"],
+  ["Maya",  "LEC", "NOR", "HAM", "LEC", "LEC"],
+  ["Tomás", "NOR", "PIA", "RUS", "NOR", "PIA"],
+  ["Ayu",   "PIA", "NOR", "VER", "LEC", "NOR"],
+];
+const mini = (p) => `<span class="mini">${p === "You" ? "D" : p[0]}</span>`;
+document.getElementById("picks-table").innerHTML =
+  `<div class="tr th"><span>Player</span><span>P1</span><span>P2</span><span>P3</span><span>Pole</span><span>Fastest lap</span><span style="text-align:right">Season</span></div>` +
+  picks.map(([p, ...d]) => `<div class="tr${p === "You" ? " me" : ""}"><span class="p">${mini(p)}${p}</span>${d.map((x) => `<span>${drv(x)}</span>`).join("")}<span class="num">P${["Sarah", "You", "Kenji", "Tomás", "Maya", "Ayu"].indexOf(p) + 1}</span></div>`).join("");
+
+// Example result, scored with the plan's rules (max 15)
+const res = { p1: "NOR", p2: "LEC", p3: "VER", pole: "NOR", fl: "PIA" };
+const score = ([, p1, p2, p3, pole, fl]) => {
+  const podium = [res.p1, res.p2, res.p3];
+  return [p1, p2, p3].filter((d) => podium.includes(d)).length
+    + (p1 === res.p1) * 4 + (p2 === res.p2) * 2 + (p3 === res.p3) * 2
+    + (pole === res.pole) * 2 + (fl === res.fl) * 2;
+};
+document.getElementById("result").innerHTML =
+  [["P1", res.p1], ["P2", res.p2], ["P3", res.p3], ["Pole", res.pole], ["Fastest lap", res.fl]]
+    .map(([k, a]) => `<div class="srow"><b>${drv(a)}<span style="font:400 14px var(--body);color:var(--muted);text-align:left">${D[a][1]}</span></b><span>${k}</span></div>`).join("");
+
+// Example season totals before Singapore, plus this race's points and best race so far
+const before = { Sarah: 145, You: 142, Kenji: 139, Tomás: 136, Maya: 116, Ayu: 100 };
+const bestSoFar = { Sarah: 14, You: 13, Kenji: 12, Tomás: 15, Maya: 11, Ayu: 10 };
+const prevRank = Object.keys(before);
+const rows = picks.map((p) => ({ name: p[0], last: score(p), total: before[p[0]] + score(p) }))
+  .sort((a, b) => b.total - a.total);
+const topScore = Math.max(...rows.map((r) => r.last));
+document.getElementById("board").innerHTML =
+  `<div class="tr th"><span>#</span><span>Player</span><span>Move</span><span>Singapore</span><span>Best race</span><span style="text-align:right">Total</span></div>` +
+  rows.map((r, i) => {
+    const move = prevRank.indexOf(r.name) - i;
+    const mv = move > 0 ? `<span class="mv up">▲ ${move}</span>` : move < 0 ? `<span class="mv dn">▼ ${-move}</span>` : `<span class="mv" style="color:var(--faint)">–</span>`;
+    const best = Math.max(bestSoFar[r.name], r.last);
+    return `<div class="tr${r.name === "You" ? " me" : ""}"><span class="rk">${i + 1}</span><span class="p">${mini(r.name)}${r.name}</span>${mv}<span class="last${r.last === topScore ? " best" : ""}">+${r.last}</span><span class="num" style="text-align:left">${best}</span><span class="tot">${r.total}</span></div>`;
+  }).join("");
+</script>
+</body>
+</html>
