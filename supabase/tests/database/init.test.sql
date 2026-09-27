@@ -58,19 +58,27 @@ insert into public.predictions (user_id, session_key, p1, p2, p3, pole, fastest_
 select is((select count(*)::int from public.races_unscored where session_key = 9002), 1,
   'a finished race without a result is waiting to be scored');
 
--- Result: NOR, LEC, VER; pole NOR; fastest lap PIA.
+-- What score-races writes: scores first (points from scoring.ts, tested separately), then the result.
+-- A stray score for the unfinished race must not count on the leaderboard.
+insert into public.scores (user_id, session_key, points) values
+  ('00000000-0000-0000-0000-000000000001', 9002, 9),
+  ('00000000-0000-0000-0000-000000000002', 9002, 13),
+  ('00000000-0000-0000-0000-000000000003', 9002, 2),
+  ('00000000-0000-0000-0000-000000000001', 9012, 15);
 insert into public.results (session_key, p1, p2, p3, pole, fastest_lap) values (9002, 1, 16, 3, 1, 81);
 
 select is((select count(*)::int from public.races_unscored), 0, 'a scored race stops polling');
 
-select set_eq(
-  $$ select pr.display_name, pp.points from public.prediction_points pp
-     join public.profiles pr on pr.id = pp.user_id $$,
-  $$ values ('Ayu', 4), ('Kenji', 2), ('Maya', 2), ('Sarah', 13), ('Tomás', 9), ('You', 9), ('partial', 5) $$,
-  'points match the hand calculation, and empty picks score 0'
+select results_eq(
+  $$ select display_name, total, races from public.leaderboard $$,
+  $$ values ('Sarah'::text, 13, 1), ('You', 9, 1), ('Kenji', 2, 1) $$,
+  'the leaderboard sums scores by total, counting only races with a result'
 );
 
-select is((select display_name from public.leaderboard limit 1), 'Sarah', 'the leaderboard is ordered by total');
+select throws_ok(
+  $$ insert into public.scores (user_id, session_key, points) values ('00000000-0000-0000-0000-000000000004', 9002, 16) $$,
+  '23514', null, 'a race score cannot exceed 15'
+);
 
 -- Entry list and podium rules apply to everyone, even the table owner.
 select throws_ok(

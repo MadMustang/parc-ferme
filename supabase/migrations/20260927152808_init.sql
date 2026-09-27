@@ -1,5 +1,5 @@
 -- Parc Fermé: calendar from OpenF1, players' picks, and scoring.
--- Written by the Edge Functions (service role): meetings, sessions, drivers, results.
+-- Written by the Edge Functions (service role): meetings, sessions, drivers, scores, results.
 -- Written by players: predictions (own rows, before the lock) and profiles (own display name).
 
 -- ---------------------------------------------------------------------------
@@ -63,7 +63,9 @@ create table public.predictions (
 );
 create index predictions_session_key_idx on public.predictions (session_key);
 
--- The scored outcome of one race, written once by score-races.
+-- The scored outcome of one race, written once by score-races after the scores below.
+-- Its insert is the "race is done" signal: it drops the race from races_unscored,
+-- and Realtime tells clients to refetch the leaderboard.
 create table public.results (
   session_key int primary key references public.sessions on delete cascade,  -- the Race session
   p1          int not null,
@@ -77,6 +79,16 @@ create table public.results (
   foreign key (session_key, p3)          references public.drivers,
   foreign key (session_key, pole)        references public.drivers,
   foreign key (session_key, fastest_lap) references public.drivers
+);
+
+-- Points per player per race, calculated by score-races (scoring rules live in
+-- supabase/functions/score-races/scoring.ts). Written before the results row, so a crash
+-- in between just means the next run recalculates and upserts them again.
+create table public.scores (
+  user_id     uuid not null references public.profiles on delete cascade,
+  session_key int  not null references public.sessions on delete cascade,  -- the Race session
+  points      int  not null check (points between 0 and 15),
+  primary key (user_id, session_key)
 );
 
 -- ---------------------------------------------------------------------------
@@ -109,30 +121,17 @@ where res.session_key is null
   and ra.race_end < now()
   and ra.race_end > now() - interval '2 days';
 
--- Points per player per scored race, 15 at most:
--- 1 per picked driver on the podium, +4 exact P1, +2 exact P2, +2 exact P3, 2 pole, 2 fastest lap.
--- coalesce() makes an empty pick score 0 instead of turning the whole sum into null.
-create view public.prediction_points with (security_invoker = on) as
-select p.user_id,
-       p.session_key,
-       (select count(*) from unnest(array[p.p1, p.p2, p.p3]) d
-         where d = any (array[r.p1, r.p2, r.p3]))::int
-     + coalesce(p.p1 = r.p1, false)::int * 4
-     + coalesce(p.p2 = r.p2, false)::int * 2
-     + coalesce(p.p3 = r.p3, false)::int * 2
-     + coalesce(p.pole = r.pole, false)::int * 2
-     + coalesce(p.fastest_lap = r.fastest_lap, false)::int * 2 as points
-from public.predictions p
-join public.results r using (session_key);
-
+-- Season standings. Only races with a results row count, so scores left behind by a
+-- deleted (corrected) result don't show until the race is rescored.
 create view public.leaderboard with (security_invoker = on) as
 select pr.id as user_id,
        pr.display_name,
-       sum(pp.points)::int as total,
-       count(*)::int       as races,
-       max(pp.points)      as best_race
-from public.prediction_points pp
-join public.profiles pr on pr.id = pp.user_id
+       sum(s.points)::int as total,
+       count(*)::int      as races,
+       max(s.points)      as best_race
+from public.scores s
+join public.results r on r.session_key = s.session_key
+join public.profiles pr on pr.id = s.user_id
 group by pr.id, pr.display_name
 order by total desc;
 
@@ -144,6 +143,7 @@ alter table public.meetings    enable row level security;
 alter table public.sessions    enable row level security;
 alter table public.drivers     enable row level security;
 alter table public.results     enable row level security;
+alter table public.scores      enable row level security;
 alter table public.profiles    enable row level security;
 alter table public.predictions enable row level security;
 
@@ -153,6 +153,7 @@ create policy "calendar is public" on public.meetings for select to anon, authen
 create policy "calendar is public" on public.sessions for select to anon, authenticated using (true);
 create policy "calendar is public" on public.drivers  for select to anon, authenticated using (true);
 create policy "calendar is public" on public.results  for select to anon, authenticated using (true);
+create policy "players can see scores" on public.scores for select to authenticated using (true);
 
 -- Display names show on the leaderboard. Rows are created by the trigger below.
 create policy "players can see names" on public.profiles
