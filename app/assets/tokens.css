@@ -1,0 +1,22 @@
+/* Design tokens from design/mockups.html. Dark timing-screen look:
+   purple = best of the weekend, green = open / gained, yellow = lock. */
+:root {
+  color-scheme: dark;
+  --bg: #0e0f12;
+  --surface: #16181d;
+  --surface-2: #1d2026;
+  --line: #262a31;
+  --ink: #eceef1;
+  --muted: #8a909b;
+  --faint: #5c626d;
+  --purple: #a55cff;
+  --green: #2fd27a;
+  --yellow: #f2c230;
+  --red: #ff6b6b;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
