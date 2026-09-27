@@ -145,8 +145,10 @@ vite.config.ts.timestamp-*
 # AI Agent Tools
 .mcp.json
 .ai
+.agents
 .claude
 _agents
 AGENTS.md
 CLAUDE.md
+skills-lock.json
 graphify-out/
