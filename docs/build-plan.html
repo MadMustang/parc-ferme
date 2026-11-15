@@ -100,7 +100,7 @@ ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 70
 <header>
   <div class="eyebrow">Supabase × OpenF1 · build plan</div>
   <h1>Parc Fermé</h1>
-  <p class="lede">Before each Grand Prix, friends pick the podium, pole sitter and fastest lap. Picks lock when qualifying starts, like cars in parc fermé. Once OpenF1 publishes the race results, the scores come in within a minute and the leaderboard updates live for everyone.</p>
+  <p class="lede">Before each Grand Prix, friends pick the podium and the pole sitter, and on a sprint weekend the Sprint too. Picks lock when qualifying starts, like cars in parc fermé. Once OpenF1 publishes the race results, the scores come in within a minute and the season's leaderboard updates live for everyone.</p>
 </header>
 
 <section>
@@ -116,7 +116,7 @@ flowchart LR
     Auth["Auth<br/>magic link + Google"]
     DB[("Postgres<br/>tables + RLS<br/>scoring views")]
     RT["Realtime"]
-    CronW["pg_cron · daily<br/>06:00 UTC"]
+    CronW["pg_cron · twice a day"]
     CronS["pg_cron · every minute<br/>fires only if a race<br/>is waiting for results"]
     FnC["Edge Function<br/>sync-calendar"]
     FnS["Edge Function<br/>score-races"]
@@ -130,22 +130,22 @@ flowchart LR
   CronW -- "pg_net POST" --> FnC
   CronS -- "pg_net POST" --> FnS
   FnC -- "GET meetings (next 4 weeks);<br/>sessions + drivers (this week)" --> API
-  FnS -- "GET session_result, laps" --> API
+  FnS -- "GET session_result" --> API
   FnC -- "upsert" --> DB
   FnS -- "upsert scores,<br/>then insert results" --> DB
   </pre></div>
   <div class="legend">
     <div><b>Postgres + RLS</b><span>Holds all the rules. Picks are locked at the database, so a modified client can't get around them.</span></div>
-    <div><b>Daily calendar sync</b><span>Every day, fetch the meetings in the next 4 weeks and upsert them. For a meeting that starts within 7 days, also fetch its sessions and drivers, even if the meeting is already stored.</span></div>
+    <div><b>Calendar sync, twice a day</b><span>Fetch the meetings in the next 4 weeks and upsert them. For a meeting that starts within 7 days, also fetch its sessions and drivers, even if the meeting is already stored. It runs twice because OpenF1's free tier is closed around live sessions, so one run can fail.</span></div>
     <div><b>Per-minute check, run by the database</b><span>The cron job checks Postgres for a race that's waiting for results. It calls <code>score-races</code> only if it finds one, so most minutes cost nothing.</span></div>
-    <div><b>Scoring in TypeScript</b><span><code>score-races</code> calculates each player's points once, when results arrive, and stores them in <code>scores</code>. The leaderboard is a plain view over that table.</span></div>
+    <div><b>Scoring in TypeScript</b><span><code>score-races</code> calculates each player's points once, when results arrive, and stores them in <code>scores</code>. The leaderboard is a plain view over that table, with one table per season.</span></div>
   </div>
 </section>
 
 <section>
   <div class="eyebrow">02 · Race weekend</div>
   <h2>From calendar to scores</h2>
-  <p>Picks lock at the start of <em>Grand Prix</em> qualifying, because pole is one of the picks. On sprint weekends, sprint qualifying happens on Friday and doesn't count.</p>
+  <p>Grand Prix picks lock at the start of <em>Grand Prix</em> qualifying, because pole is one of the picks. A sprint weekend has a second set of picks for the Sprint. Those lock at the start of sprint qualifying on Friday, and the Sprint is scored on its own on Saturday. The timeline shows the Grand Prix.</p>
   <div class="tl-scroll"><div class="tl">
     <div><span class="day">Up to 4 wks before</span><span class="s">Calendar</span><span class="pill sync">Synced</span><span class="note">The meeting is stored and shows up as coming soon.</span></div>
     <div><span class="day">Race week</span><span class="s">Entry list</span><span class="pill open">Picks open</span><span class="note">Sessions are stored within 7 days of the weekend. Picks open once OpenF1 publishes the entry list.</span></div>
@@ -170,7 +170,7 @@ sequenceDiagram
   participant F as Edge Functions
   participant O as OpenF1
 
-  C->>F: daily: sync-calendar
+  C->>F: twice a day: sync-calendar
   F->>O: GET /meetings?date_start in next 4 weeks
   F->>DB: upsert meetings
   loop each meeting that starts within 7 days
@@ -183,7 +183,7 @@ sequenceDiagram
 
   U->>App: open next race
   App->>DB: select race + drivers for its race session
-  U->>App: pick P1 P2 P3, pole, fastest lap
+  U->>App: pick P1 P2 P3 and pole
   App->>DB: upsert prediction
   Note over DB: RLS allows it only while now() < lock_at
 
@@ -199,7 +199,6 @@ sequenceDiagram
     F-->>F: not published yet, next minute tries again
   else results available
     F->>O: GET /session_result (qualifying, position=1)
-    F->>O: GET /laps?session_key=… (min lap_duration)
     F->>DB: select predictions for the race
     F->>F: scorePicks() for each player
     F->>DB: upsert scores
@@ -297,7 +296,7 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data -&gt;&gt; 'display_name',   <span class="c">-- from Create account</span>
              new.raw_user_meta_data -&gt;&gt; 'full_name',      <span class="c">-- from Google</span>
-             split_part(new.email, '@', 1))               <span class="c">-- fallback</span>
+             'Player')                                    <span class="c">-- never the email: every player sees names</span>
   );
   return new;
 end $$;
@@ -335,13 +334,14 @@ erDiagram
   profiles ||--o{ scores : earns
   sessions ||--o{ scores : "race scored"
   sessions ||--|{ drivers : "entry list"
-  drivers ||--o{ predictions : "p1..fastest_lap"
+  drivers ||--o{ predictions : "p1..pole"
 
   meetings {
     int meeting_key PK
     text meeting_name
     text circuit_short_name
     text country_name
+    int year "the season"
     timestamptz date_start
   }
   sessions {
@@ -350,6 +350,7 @@ erDiagram
     text session_name "Race, Qualifying, Sprint..."
     timestamptz date_start
     timestamptz date_end
+    boolean is_cancelled
   }
   profiles {
     uuid id PK "= auth.users.id"
@@ -365,36 +366,34 @@ erDiagram
   }
   predictions {
     uuid user_id PK
-    int session_key PK "race session"
+    int session_key PK "race or sprint session"
     int p1
     int p2
     int p3
     int pole
-    int fastest_lap
   }
   results {
-    int session_key PK "race session"
+    int session_key PK "race or sprint session"
     int p1
     int p2
     int p3
     int pole
-    int fastest_lap
   }
   scores {
     uuid user_id PK
-    int session_key PK "race session"
-    int points "0 to 15"
+    int session_key PK "race or sprint session"
+    int points
   }
   </pre></div>
-  <p>The calendar tables store what OpenF1 returns: one row per meeting, one per session, and one per driver per session. <code>scores</code> is written by <code>score-races</code>, one row per player per race.</p>
+  <p>The calendar tables store what OpenF1 returns: one row per meeting, one per session, and one per driver per session. <code>scores</code> is written by <code>score-races</code>, one row per player per race or sprint.</p>
   <p><code>drivers</code> is keyed by <code>(session_key, driver_number)</code> because car numbers can change between seasons. Lando Norris raced as #4 and is #1 in 2026. Predictions and results point at drivers through <code>(session_key, p1)</code> and the like, so a pick can only name a driver on that race's entry list.</p>
   <p>The rest is built with views:</p>
   <ul class="plain">
-    <li><code>races</code>: one row per Grand Prix, joining the race session to its qualifying session to get <code>lock_at</code>. The app and the RLS policies use this view.</li>
+    <li><code>races</code>: one row per Grand Prix and one per Sprint, told apart by <code>kind</code>. Each is joined to its own qualifying session to get <code>lock_at</code>. Cancelled sessions are left out. The app and the RLS policies use this view.</li>
     <li><code>races_unscored</code>: races that ended in the last 2 days and have no results yet. The per-minute cron job uses it to decide whether to call <code>score-races</code>.</li>
-    <li><code>leaderboard</code>: each player's total, races played and best race, summed from <code>scores</code>. Only races with a results row count.</li>
+    <li><code>leaderboard</code>: one table per season. It has each player's total, races played, best race, points from the last weekend, rank and previous rank, summed from <code>scores</code>. Only races with a results row count.</li>
   </ul>
-  <p>All three views use <code>security_invoker</code>, so they follow the same RLS rules as the tables. The full schema is in <code>supabase/migrations/20260927152808_init.sql</code>.</p>
+  <p>All three views use <code>security_invoker</code>, so they follow the same RLS rules as the tables. The schema is in <code>supabase/migrations/</code>: <code>…_schema.sql</code> holds the tables and views in plain Postgres, and <code>…_supabase.sql</code> adds Auth, the RLS policies and Realtime.</p>
 </section>
 
 <section>
@@ -403,41 +402,42 @@ erDiagram
   <div class="tbl"><table>
     <thead><tr><th>Our column</th><th>Endpoint</th><th>How</th></tr></thead>
     <tbody>
-      <tr><td><code>meetings.*</code></td><td><code>/meetings?date_start&gt;=…&amp;date_start&lt;=…</code></td><td>Daily, for today through today + 28 days. Each <code>meeting_key</code> is one weekend, stored as soon as it appears.</td></tr>
+      <tr><td><code>meetings.*</code></td><td><code>/meetings?date_start&gt;=…&amp;date_start&lt;=…</code></td><td>Twice a day, for today through today + 28 days. Each <code>meeting_key</code> is one weekend, stored as soon as it appears.</td></tr>
       <tr><td><code>sessions.*</code></td><td><code>/sessions?meeting_key=…</code></td><td>Only for a meeting that starts within 7 days of the run, including one already stored. That run fetches the most up-to-date session times.</td></tr>
       <tr><td><code>drivers.*</code></td><td><code>/drivers?meeting_key=…</code></td><td>Same meetings as the sessions row. It returns the entry list for every session of the weekend, and it works before the weekend starts. Some rows come back twice, so drop duplicates before the upsert.</td></tr>
-      <tr><td><code>results.p1–p3</code></td><td><code>/session_result?session_key=…&amp;position&lt;=3</code></td><td>Race classification.</td></tr>
-      <tr><td><code>results.pole</code></td><td><code>/session_result?session_key=&lt;quali&gt;&amp;position=1</code></td><td>Uses the qualifying result, not <code>/starting_grid</code>, because grid penalties can move the pole sitter back.</td></tr>
-      <tr><td><code>results.fastest_lap</code></td><td><code>/laps?session_key=…</code></td><td>The lowest non-null <code>lap_duration</code>. That's about 1,200 rows per race, which is fine for one request.</td></tr>
+      <tr><td><code>results.p1–p3</code></td><td><code>/session_result?session_key=…&amp;position&lt;=3</code></td><td>Race or Sprint classification.</td></tr>
+      <tr><td><code>results.pole</code></td><td><code>/session_result?session_key=&lt;quali&gt;&amp;position=1</code></td><td>Uses the qualifying result (sprint qualifying for a Sprint), not <code>/starting_grid</code>, because grid penalties can move the pole sitter back.</td></tr>
     </tbody>
   </table></div>
 </section>
 
 <section>
   <div class="eyebrow">07 · Scoring</div>
-  <h2>15 points per race, at most</h2>
+  <h2>13 points for a Grand Prix, 8 for a Sprint</h2>
   <div class="tbl"><table>
-    <thead><tr><th>Pick</th><th>Rule</th><th style="text-align:right">Points</th></tr></thead>
+    <thead><tr><th>Pick</th><th>Rule</th><th style="text-align:right">Grand Prix</th><th style="text-align:right">Sprint</th></tr></thead>
     <tbody>
-      <tr><td>Podium driver</td><td>Each picked driver who finishes on the podium, in any position</td><td class="num">1 × 3</td></tr>
-      <tr><td>Exact P1</td><td>Bonus for the winner in the right position</td><td class="num">+4</td></tr>
-      <tr><td>Exact P2 / P3</td><td>Bonus for each in the right position</td><td class="num">+2 each</td></tr>
-      <tr><td>Pole</td><td>Fastest in GP qualifying</td><td class="num">2</td></tr>
-      <tr><td>Fastest lap</td><td>Fastest lap of the race</td><td class="num">2</td></tr>
+      <tr><td>Podium driver</td><td>Each picked driver who finishes on the podium, in any position</td><td class="num">1 × 3</td><td class="num">1 × 3</td></tr>
+      <tr><td>Exact P1</td><td>Bonus for the winner in the right position</td><td class="num">+4</td><td class="num">+2</td></tr>
+      <tr><td>Exact P2 / P3</td><td>Bonus for each in the right position</td><td class="num">+2 each</td><td class="num">+1 each</td></tr>
+      <tr><td>Pole</td><td>Fastest in that race's qualifying: GP qualifying, or sprint qualifying for a Sprint</td><td class="num">2</td><td class="num">1</td></tr>
     </tbody>
-    <tfoot><tr><td colspan="2">Perfect weekend</td><td class="num">15</td></tr></tfoot>
+    <tfoot><tr><td colspan="2">Perfect score</td><td class="num">13</td><td class="num">8</td></tr></tfoot>
   </table></div>
-  <p>The rules live in <code>supabase/functions/score-races/scoring.ts</code>, a plain TypeScript function with no Deno or Supabase imports. <code>npm run test:scoring</code> checks it against the example race from the mockups. Changing the points is a code change there, not a database migration.</p>
+  <p>The rules live in <code>supabase/functions/score-races/scoring.ts</code>, a plain TypeScript function with no Deno or Supabase imports. <code>npm run test:functions</code> checks it against the example race from the mockups. Changing the points is a code change there, not a database migration.</p>
+  <p>A Sprint keeps the podium point and halves the bonuses. A fastest-lap pick was dropped from the first version. The README's "Later" list says how to bring it back.</p>
 </section>
 
 <section>
   <div class="eyebrow">08 · The important SQL</div>
   <h2>Races, locks, scores and schedules</h2>
 
-  <h3>A race is a Race session plus its Qualifying session</h3>
+  <h3>A race is a Race or Sprint session plus its own qualifying session</h3>
 <pre class="code">create view races as
 select r.session_key,
        r.meeting_key,
+       case r.session_name when 'Race' then 'race' else 'sprint' end as kind,
+       m.year,
        m.meeting_name,
        m.circuit_short_name,
        q.session_key as quali_session_key,
@@ -446,8 +446,10 @@ select r.session_key,
        r.date_end    as race_end
 from sessions r
 join meetings m on m.meeting_key = r.meeting_key
-join sessions q on q.meeting_key = r.meeting_key and q.session_name = 'Qualifying'
-where r.session_name = 'Race';
+join sessions q on q.meeting_key = r.meeting_key
+  and q.session_name = case r.session_name when 'Race' then 'Qualifying' else 'Sprint Qualifying' end
+where r.session_name in ('Race', 'Sprint')
+  and not r.is_cancelled;
 
 create view races_unscored as
 select ra.*
@@ -470,18 +472,17 @@ where res.session_key is null
 
 create table predictions (
   user_id     uuid references auth.users on delete cascade,
-  session_key int  references sessions,          <span class="c">-- the race session</span>
-  p1 int, p2 int, p3 int, pole int, fastest_lap int,
+  session_key int  references sessions,          <span class="c">-- the race or sprint session</span>
+  p1 int, p2 int, p3 int, pole int,
   primary key (user_id, session_key),
   <span class="c">-- each pick must be a driver on this race's entry list</span>
-  foreign key (session_key, p1)          references drivers,
-  foreign key (session_key, p2)          references drivers,
-  foreign key (session_key, p3)          references drivers,
-  foreign key (session_key, pole)        references drivers,
-  foreign key (session_key, fastest_lap) references drivers,
+  foreign key (session_key, p1)   references drivers,
+  foreign key (session_key, p2)   references drivers,
+  foreign key (session_key, p3)   references drivers,
+  foreign key (session_key, pole) references drivers,
   check (p1 &lt;&gt; p2 and p1 &lt;&gt; p3 and p2 &lt;&gt; p3)
 );
-<span class="c">-- results: the same five foreign keys</span></pre>
+<span class="c">-- results: the same four foreign keys</span></pre>
 
   <h3>Picks can only be changed before the lock</h3>
 <pre class="code"><span class="c">-- a prediction can be written only by its owner, and only before lock_at</span>
@@ -510,30 +511,51 @@ create policy "read own, or all after lock" on predictions
 <span class="c">-- meetings, sessions, drivers, results: select for authenticated; no write policy,</span>
 <span class="c">-- so only the Edge Functions (service role) can write to them</span></pre>
 
-  <h3>Scores are stored; the leaderboard is a view</h3>
+  <h3>Scores are stored; the leaderboard is a view, one table per season</h3>
 <pre class="code">create table scores (
   user_id     uuid references profiles on delete cascade,
-  session_key int  references sessions on delete cascade,   <span class="c">-- the race session</span>
-  points      int  not null check (points between 0 and 15),
+  session_key int  references sessions on delete cascade,   <span class="c">-- the race or sprint session</span>
+  points      int  not null check (points &gt;= 0),
   primary key (user_id, session_key)
 );
 
 create view leaderboard with (security_invoker = on) as
-select pr.id as user_id, pr.display_name,
-       sum(s.points)::int as total, count(*)::int as races, max(s.points) as best_race
-from scores s
-join results r   on r.session_key = s.session_key     <span class="c">-- only races that are done</span>
-join profiles pr on pr.id = s.user_id
-group by pr.id, pr.display_name                        <span class="c">-- by id: two players can share a name</span>
-order by total desc;</pre>
+with scored as (                                       <span class="c">-- only races that are done</span>
+  select s.user_id, s.points, ra.year, ra.meeting_key, ra.race_start
+  from scores s
+  join results r on r.session_key = s.session_key
+  join races ra  on ra.session_key = s.session_key
+),
+latest as (                                            <span class="c">-- each season's last scored weekend</span>
+  select distinct on (year) year, meeting_key
+  from scored
+  order by year, race_start desc
+),
+totals as (
+  select sc.year, sc.user_id,
+         sum(sc.points)::int as total, count(*)::int as races, max(sc.points) as best_race,
+         coalesce(sum(sc.points) filter (where sc.meeting_key = l.meeting_key), 0)::int as last_points,
+         count(*) filter (where sc.meeting_key &lt;&gt; l.meeting_key) as races_before
+  from scored sc
+  join latest l on l.year = sc.year
+  group by sc.year, sc.user_id                         <span class="c">-- by id: two players can share a name</span>
+)
+select t.year, t.user_id, pr.display_name, t.total, t.races, t.best_race, t.last_points,
+       rank() over (partition by t.year order by t.total desc, t.best_race desc)::int as rank,
+       case when t.races_before &gt; 0                   <span class="c">-- no earlier score: no previous rank</span>
+            then rank() over (partition by t.year order by t.total - t.last_points desc)::int
+       end as prev_rank
+from totals t
+join profiles pr on pr.id = t.user_id
+order by t.year desc, rank, pr.display_name;</pre>
 
   <h3>Two cron jobs</h3>
 <pre class="code"><span class="c">-- TODO: Securely load this value from an environment variable or secrets vault. Do not hardcode.</span>
 <span class="c">-- Store project_url and secret_key in Supabase Vault first, then read them here.</span>
 <span class="c">-- The functions check the new secret API key, sent in an apikey header.</span>
 
-<span class="c">-- 1. calendar: every day at 06:00 UTC</span>
-select cron.schedule('sync-calendar', '0 6 * * *', $$
+<span class="c">-- 1. calendar: twice a day, at 06:00 and 18:00 UTC</span>
+select cron.schedule('sync-calendar', '0 6,18 * * *', $$
   select net.http_post(
     url     := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
                || '/functions/v1/sync-calendar',
@@ -556,10 +578,10 @@ select cron.schedule('score-races', '* * * * *', $$
 $$);</pre>
 
   <h3>The Edge Functions</h3>
-  <p>Both are in <code>supabase/functions/</code> and accept only the secret API key, because only pg_cron calls them.</p>
+  <p>Both are in <code>supabase/functions/</code> and accept only the secret API key, because only pg_cron calls them. Each has a <code>core.ts</code> with the job and a short <code>index.ts</code> that makes it an Edge Function. The jobs reach OpenF1 only through <code>_shared/openf1.ts</code> and the database only through <code>_shared/db.ts</code>, so a Node server with a scheduler can run the same <code>core.ts</code> files.</p>
   <ul class="plain">
-    <li><b><code>sync-calendar/index.ts</code></b>: upserts the meetings for the next 4 weeks. For a meeting starting within 7 days it also upserts its sessions and entry list, dropping OpenF1's duplicate rows first. In dev, POST <code>{"from": "2025-10-01", "to": "2025-10-10"}</code> to sync a past window instead.</li>
-    <li><b><code>score-races/index.ts</code></b>: for each race in <code>races_unscored</code>, fetches the podium, pole and fastest lap. If the podium isn't published yet it tries again next run. Otherwise it scores every player with <code>scoring.ts</code>, upserts <code>scores</code>, then inserts the results row.</li>
+    <li><b><code>sync-calendar/core.ts</code></b>: upserts the meetings for the next 4 weeks. For a meeting starting within 7 days it also upserts its sessions and entry list, dropping OpenF1's duplicate rows first. In dev, POST <code>{"from": "2025-10-01", "to": "2025-10-10"}</code> to sync a past window instead.</li>
+    <li><b><code>score-races/core.ts</code></b>: for each race or sprint in <code>races_unscored</code>, fetches the podium and pole. If the podium isn't published yet it tries again next run. Otherwise it scores every player with <code>scoring.ts</code>, upserts <code>scores</code>, then inserts the results row.</li>
   </ul>
 </section>
 
@@ -602,12 +624,12 @@ VITE_SUPABASE_PUBLISHABLE_KEY=&lt;publishable key from supabase status or the da
       <h3>Apply the migration</h3>
       <pre class="code">supabase db reset   <span class="c"># local: rebuilds the database from supabase/migrations/</span>
 supabase db push    <span class="c"># hosted, once linked</span></pre>
-      <p>The <code>init</code> migration holds the seven tables, three views, RLS policies, the <code>handle_new_user</code> trigger and Realtime for <code>results</code>. pg_cron and pg_net come in a second migration with the cron jobs.</p>
+      <p>The first migration holds the seven tables and three views. The second holds the RLS policies, the <code>handle_new_user</code> trigger and Realtime for <code>results</code>. pg_cron and pg_net come in a second migration with the cron jobs.</p>
     </li>
     <li>
       <h3>Run the tests</h3>
-      <pre class="code">supabase test db        <span class="c"># database rules: lock, entry list, visibility, leaderboard</span>
-npm run test:scoring    <span class="c"># scoring rules in scoring.ts</span></pre>
+      <pre class="code">supabase test db        <span class="c"># database rules: lock, sprints, seasons, entry list, visibility</span>
+npm run test:functions  <span class="c"># scoring rules, the OpenF1 reader, the scoring job</span></pre>
     </li>
     <li>
       <h3>Run the Edge Functions locally, then deploy</h3>
@@ -637,12 +659,13 @@ supabase functions deploy score-races</pre>
   <ul class="plain">
     <li><b>OpenF1 lists future weekends. Confirmed.</b> <code>/meetings</code> returns upcoming meetings, and <code>/drivers?meeting_key=…</code> returns the entry list before the weekend starts.</li>
     <li><b>How soon free data appears.</b> OpenF1 only charges for <em>live</em> data. Historical data is free, but the docs don't say how soon after a race it's published. Per-minute checks until then cost nothing, and after 2 days the race is dropped from <code>races_unscored</code>.</li>
-    <li><b>Picks open when the entry list is published.</b> The pick form needs the race's sessions (for <code>lock_at</code>) and its entry list. Sessions are fetched once the weekend is within 7 days. OpenF1 publishes entry lists at different times: Singapore 2026 had one 2 weeks ahead, the 2 Oct 2026 weekend had none 5 days ahead. That's why the sync runs daily (about 3 requests a day).</li>
+    <li><b>Picks open when the entry list is published.</b> The pick form needs the race's sessions (for <code>lock_at</code>) and its entry list. Sessions are fetched once the weekend is within 7 days. OpenF1 publishes entry lists at different times: Singapore 2026 had one 2 weeks ahead, the 2 Oct 2026 weekend had none 5 days ahead. That's why the sync runs twice a day (about 6 requests a day).</li>
     <li><b>OpenF1 answers 404 when nothing matches.</b> Not an empty list. Both functions treat a 404 as "no rows yet".</li>
     <li><b>Late entry-list changes.</b> If a reserve driver is announced on Thursday, they won't be in the picker until <code>sync-calendar</code> runs again. The same manual re-run covers this.</li>
     <li><b>Disqualifications after the race.</b> A result row is written once. If the stewards change the result within 2 days, delete the results row: the leaderboard stops counting that race, and the next minute rescores it and overwrites <code>scores</code>. After 2 days, call <code>score-races</code> by hand.</li>
     <li><b>Email delivery limits.</b> Check your SMTP provider's free tier and sender-domain setup (SPF and DKIM) early. Magic links that land in spam look like a broken sign-in.</li>
-    <li><b>Leagues.</b> This plan has one global leaderboard. Private leagues for different friend groups would need a <code>leagues</code> table plus a membership table, and an extra condition in each policy. Add them only if you need them.</li>
+    <li><b>OpenF1 is closed around live sessions.</b> The free tier answers nothing from about 30 minutes before a session to 30 minutes after it. Results can't arrive sooner than that, and a calendar sync that lands in that window fails, which is why it runs twice a day.</li>
+    <li><b>Leagues.</b> This plan has one leaderboard per season for everyone. Private leagues for different friend groups would need a <code>leagues</code> table plus a membership table, and an extra condition in each policy. Add them only if you need them.</li>
   </ul>
 </section>
 

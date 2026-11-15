@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:scoring": "node --test supabase/functions/score-races/scoring.test.ts"
+    "test:functions": "node --test \"supabase/functions/**/*.test.ts\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

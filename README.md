@@ -2,16 +2,28 @@
 
 Motorsport prediction league web application where users can predict who wins, get poles, and etc.
 
-Before each Grand Prix, players pick the podium (P1–P3), the pole sitter and the fastest lap. Picks lock when GP qualifying starts. After the race, the results come from the free [OpenF1 API](https://openf1.org), every player is scored (15 points at most per race), and the leaderboard updates live.
+Before each Grand Prix, players pick the podium (P1–P3) and the pole sitter. On a sprint weekend they make a second set of picks for the Sprint. Picks lock when that race's own qualifying starts. After the race, the results come from the free [OpenF1 API](https://openf1.org), every player is scored (13 points at most for a Grand Prix, 8 for a Sprint), and the season's leaderboard updates live.
 
 ## Stack
 
 - **Frontend:** Vue 3 + Vite + TypeScript + Vue Router, a single-page app in `app/`. Folders follow Nuxt's names (`pages/`, `layouts/`, `composables/`), so a later move to Nuxt only replaces `router.ts` and `main.ts`.
 - **Backend:** Supabase.
   - Postgres holds the data, and row-level security enforces the rules (picks lock at qualifying, other players' picks stay hidden until then).
-  - Two Edge Functions talk to OpenF1: `sync-calendar` and `score-races`.
+  - Two Edge Functions do the server work: `sync-calendar` and `score-races`.
   - pg_cron runs them on a schedule.
   - Auth handles sign-in with magic links (Google later), and Realtime pushes leaderboard updates.
+
+### Moving off Supabase later
+
+The backend is split so that each Supabase part can be replaced on its own:
+
+- **The jobs don't know Supabase.** Each function is a `core.ts` with the logic and a short `index.ts` that makes it an Edge Function. A Node server with a scheduler can call the same `core.ts`.
+- **One file talks to OpenF1** (`_shared/openf1.ts`). Another data source is another file with the same four functions.
+- **One file talks to the database** (`_shared/db.ts`). The `Db` type lists the seven things the jobs need, and `supabaseDb` provides them. Another host needs a second function that returns a `Db`.
+- **The schema is plain Postgres** (`…_schema.sql`). Auth, the row-level security policies and Realtime are in a second migration (`…_supabase.sql`).
+- **Pages will reach the backend only through composables** (Phase 5), so the frontend has one place to change too.
+
+Supabase itself is open source and can be self-hosted with Docker, which needs no code changes at all.
 
 ## Docs
 
@@ -27,13 +39,22 @@ app/                          Vue app (Nuxt-style folders)
   assets/tokens.css           design tokens from the mockups
 supabase/
   config.toml                 local stack config (Auth redirects point at localhost:5173)
-  migrations/                 database schema (one init migration so far)
+  migrations/
+    …_schema.sql              tables and views, plain Postgres
+    …_supabase.sql            Auth link, row-level security policies, Realtime
   tests/database/             pgTAP tests for the database rules
   functions/
-    sync-calendar/            meetings, sessions and entry lists from OpenF1
+    _shared/
+      openf1.ts               the only file that calls OpenF1
+      db.ts                   the only file that calls the database
+    sync-calendar/            meetings, sessions and entry lists
+      core.ts                 the job
+      index.ts                Edge Function entry
     score-races/              fetches results and scores players
+      core.ts                 the job
+      index.ts                Edge Function entry
       scoring.ts              the scoring rules, a pure function
-      scoring.test.ts         Node tests for scoring.ts
+    **/*.test.ts              Node tests
 docs/  design/                plan and mockups
 ```
 
@@ -73,8 +94,8 @@ curl -X POST http://127.0.0.1:54321/functions/v1/score-races  -H "apikey: $KEY"
 ## Tests
 
 ```sh
-supabase test db        # database rules: lock, entry list, pick visibility, leaderboard (13 checks)
-npm run test:scoring    # scoring rules in scoring.ts (4 tests)
+supabase test db        # database rules: lock, sprints, seasons, entry list, pick visibility (19 checks)
+npm run test:functions  # scoring rules, the OpenF1 reader and the scoring job (11 tests)
 npm run build           # type-check and build the frontend
 supabase db reset       # rebuild the local database from supabase/migrations/
 ```
@@ -93,7 +114,12 @@ Items marked **(you)** are for the project owner: accounts, keys and sign-offs.
 - [x] `init` migration: tables, session-keyed drivers, entry-list foreign keys, views, RLS, new-user trigger, Realtime on `results`
 - [x] 13 pgTAP tests (`supabase test db`), schema lint clean
 - [x] Move scoring out of the database into `scoring.ts`, stored in a `scores` table
-- [ ] Review the migration **(you)**
+- [x] Sprints: the `races` view lists each Grand Prix and each Sprint, with its own lock
+- [x] Seasons: the `leaderboard` view has one table per year, with rank, previous rank and last-weekend points
+- [x] Cancelled sessions are stored and left out of `races`
+- [x] Split the migration into plain Postgres (`…_schema.sql`) and Supabase-only (`…_supabase.sql`)
+- [ ] Run `supabase test db` on the real local stack (checked so far in an embedded Postgres, with stand-ins for Auth and pgTAP)
+- [ ] Review the migrations **(you)**
 
 ### Phase 2 · Calendar sync ✅
 - [x] `sync-calendar`: 4 weeks of meetings, plus sessions and entry lists for meetings starting within 7 days
@@ -103,28 +129,34 @@ Items marked **(you)** are for the project owner: accounts, keys and sign-offs.
 - [ ] Look at the synced data in Studio **(you)**
 
 ### Phase 3 · Scoring 🟡
-- [x] Scoring rules in `scoring.ts`, 4 Node tests (`npm run test:scoring`)
+- [x] Scoring rules in `scoring.ts`: 13 points for a Grand Prix, 8 for a Sprint
 - [x] `score-races`: fetch result, upsert scores, then insert the results row
 - [x] Load the 2025 Singapore GP with test picks for 5 players
-- [ ] Fix the fastest-lap step that hit the Edge runtime's CPU limit
-- [ ] Run `score-races` end to end and compare the points with a hand calculation
+- [x] Drop the fastest-lap pick, which also removes the step that hit the Edge runtime's CPU limit
+- [x] Split both functions into `core.ts` and `index.ts`, with OpenF1 and the database behind `_shared/`
+- [x] Run both jobs against live OpenF1 for the 2026 Singapore sprint weekend (in-memory database) and compare the points with a hand calculation
+- [ ] Run `score-races` end to end on the local stack
 - [ ] Check the points **(you)**
 
 ### Phase 4 · Scheduling
 - [ ] Migration: enable `pg_cron` and `pg_net`
-- [ ] Cron job for `sync-calendar`, daily at 06:00 UTC
+- [ ] Cron job for `sync-calendar`, twice a day (OpenF1's free tier is closed around live sessions, so a single daily run can fail)
 - [ ] Cron job for `score-races`, every minute but only while `races_unscored` has rows
 - [ ] Store `project_url` and `secret_key` in Vault **(you)**
 - [ ] Check that the per-minute job only calls `score-races` while a race is waiting for results
 
 ### Phase 5 · Frontend
 - [ ] Rename the env variable to `VITE_SUPABASE_PUBLISHABLE_KEY`; create `.env.local` **(you)**
+- [ ] Composables for the backend (`useAuth`, `usePicks`, `useLeaderboard`); pages never import `supabase-js`
 - [ ] Sign in, create account, check email, auth callback (magic links)
 - [ ] Try signing up and signing in **(you)**
-- [ ] Picks screen with the lock countdown
+- [ ] Picks screen with the lock countdown, counted from the server's time
+- [ ] Grand Prix / Sprint switch on sprint weekends
 - [ ] Driver picker
 - [ ] Picks locked (everyone's picks)
-- [ ] Leaderboard with live updates
+- [ ] Results screen: your picks against the result, with the points per pick (needs a mockup first)
+- [ ] Leaderboard with live updates and a season switch
+- [ ] Error state for a failed save, a form error and an expired link (needs a design rule first)
 - [ ] Profile
 - [ ] Desktop layouts
 - [ ] Click through and compare with the mockups **(you)**
@@ -142,11 +174,20 @@ Items marked **(you)** are for the project owner: accounts, keys and sign-offs.
 - [ ] Deploy the frontend **(you approve)**
 - [ ] Sign up for real and make picks for the next race **(you)**
 
+### Later
+
+- **Fastest-lap pick.** Dropped from the first version. To bring it back: add a `fastest_lap` column to `predictions` and `results`, a bonus in `scoring.ts`, and a lookup in `openf1.ts`. Don't download every lap of the race: that is about 1,400 rows, and it hit the Edge runtime's CPU limit. Fetch the winner's laps, then only laps at least as fast (`/laps?session_key=…&lap_duration<=…`, 3 rows in a test).
+- **Rescoring after a penalty.** A result is scored once. If a post-race penalty changes the podium, delete the `results` row within 2 days and the next run rescores the race. An automatic second check about a day later would remove this manual step.
+- **Private leagues.** There is one leaderboard per season for everyone.
+
 ### Known issues and decisions
 
-- **`score-races` hits the CPU limit.** Its fastest-lap step downloads every lap of the race, about 1,200 rows, and the local Edge runtime reported `CPU time soft limit reached`. The planned fix: fetch the winner's laps, then only laps at least as fast (`lap_duration<=…`).
+- **A Sprint scores about half a Grand Prix.** The podium point stays at 1 and the bonuses are halved: 8 points at most against 13.
+- **Sprint picks lock at Sprint Qualifying, Grand Prix picks at Qualifying.** A Sprint's pole is the fastest driver in Sprint Qualifying.
+- **OpenF1's free tier is closed around live sessions**, from about 30 minutes before to 30 minutes after. Results can't arrive sooner than that, and a calendar sync that lands in that window fails.
+- **The display name never falls back to the email.** A new user without a name is called "Player".
 - **OpenF1 answers 404 when a query has no results**, not an empty list. Both functions treat 404 as "no rows yet".
-- **Entry lists are published at different times.** Picks need one, so `sync-calendar` will run daily, not weekly.
+- **Entry lists are published at different times.** Picks need one, so `sync-calendar` will run twice a day, not weekly.
 - **Drivers are keyed by `(session_key, driver_number)`** because car numbers change between seasons. Norris was #4 in 2025 and is #1 in 2026.
 - **TypeScript is pinned to 6.x** because vue-tsc doesn't run on TypeScript 7 yet.
-- **Scoring lives in TypeScript** (`scoring.ts`) and is stored in `scores`. The leaderboard is a view over that table.
+- **Scoring lives in TypeScript** (`scoring.ts`) and is stored in `scores`. The leaderboard is a view over that table, grouped by season.

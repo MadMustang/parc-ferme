@@ -150,7 +150,7 @@ figcaption span { color: var(--muted); font-size: 13px; }
 .lockcard { border-radius: 18px; padding: 16px 18px; border: 1px solid #f2c23055; background: linear-gradient(120deg, #f2c2300f, transparent 60%); display: grid; gap: 8px; }
 .lockcard p { margin: 0; font-size: 15px; }
 .table { display: grid; border-top: 1px solid var(--line); margin: 0 -20px; }
-.tr { display: grid; grid-template-columns: 74px repeat(5, 1fr); align-items: center; height: 46px; padding: 0 20px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.tr { display: grid; grid-template-columns: 74px repeat(4, 1fr); align-items: center; height: 46px; padding: 0 20px; border-bottom: 1px solid var(--line); font-size: 14px; }
 .tr.th { height: 36px; font: 500 12px var(--mono); letter-spacing: .08em; color: var(--faint); text-transform: uppercase; }
 .tr .p { font-weight: 600; }
 .tr.me { background: #eceef10a; }
@@ -334,11 +334,10 @@ figcaption span { color: var(--muted); font-size: 13px; }
         <div class="pick empty"><span class="pos">P3</span><span class="who"><b>Choose a driver</b></span><span class="pts">›</span></div>
       </div>
       <div class="slots">
-        <div class="label">Bonus <em>2 pts each</em></div>
+        <div class="label">Bonus <em>2 pts</em></div>
         <div class="pick"><span class="pos" style="font-size:12px">POLE</span><span class="who"><b><i style="background:#ED1131"></i>LEC</b><span>Charles Leclerc · Ferrari</span></span><span class="pts">+2</span></div>
-        <div class="pick empty"><span class="pos" style="font-size:12px">FL</span><span class="who"><b>Fastest lap</b></span><span class="pts">›</span></div>
       </div>
-      <div class="saved"><span class="dot"></span>3 of 5 picked · saved</div>
+      <div class="saved"><span class="dot"></span>3 of 4 picked · saved</div>
     </div>
     <nav class="tabbar">
       <div class="tab on"><svg viewBox="0 0 26 26" fill="none"><path d="M6 23V4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M6 4h15v10H6" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M6 4h5v5H6zM16 4h5v5h-5zM11 9h5v5h-5z" fill="currentColor"/></svg>Picks</div>
@@ -414,7 +413,7 @@ figcaption span { color: var(--muted); font-size: 13px; }
       <div class="seg"><span class="on">Season</span><span>Singapore GP</span></div>
       <div class="result" id="result"></div>
       <div class="board" id="board"></div>
-      <div class="note">Up to 15 points per race</div>
+      <div class="note">Up to 13 points per Grand Prix, 8 per Sprint</div>
     </div>
     <nav class="tabbar">
       <div class="tab"><svg viewBox="0 0 26 26" fill="none"><path d="M6 23V4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M6 4h15v10H6" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M6 4h5v5H6zM16 4h5v5h-5zM11 9h5v5h-5z" fill="currentColor"/></svg>Picks</div>
@@ -501,29 +500,29 @@ document.getElementById("picker").innerHTML = Object.keys(D).slice(0, 10).map((a
   return `<div class="${cls}"><i style="background:#${c}"></i><span class="num">${n}</span><span class="nm"><b>${name}</b><span>${team}</span></span><span class="tag">${tag}</span></div>`;
 }).join("");
 
-// Example picks: P1 P2 P3 POLE FL
+// Example picks: P1 P2 P3 POLE
 const picks = [
-  ["You",   "NOR", "VER", "LEC", "LEC", "PIA"],
-  ["Sarah", "NOR", "LEC", "VER", "NOR", "VER"],
-  ["Kenji", "VER", "NOR", "PIA", "VER", "NOR"],
-  ["Maya",  "LEC", "NOR", "HAM", "LEC", "LEC"],
-  ["Tomás", "NOR", "PIA", "RUS", "NOR", "PIA"],
-  ["Ayu",   "PIA", "NOR", "VER", "LEC", "NOR"],
+  ["You",   "NOR", "VER", "LEC", "LEC"],
+  ["Sarah", "NOR", "LEC", "VER", "NOR"],
+  ["Kenji", "VER", "NOR", "PIA", "VER"],
+  ["Maya",  "LEC", "NOR", "HAM", "LEC"],
+  ["Tomás", "NOR", "PIA", "RUS", "NOR"],
+  ["Ayu",   "PIA", "NOR", "VER", "LEC"],
 ];
 document.getElementById("picks-table").innerHTML =
-  `<div class="tr th"><span></span><span>P1</span><span>P2</span><span>P3</span><span>Pole</span><span>FL</span></div>` +
+  `<div class="tr th"><span></span><span>P1</span><span>P2</span><span>P3</span><span>Pole</span></div>` +
   picks.map(([p, ...d]) => `<div class="tr${p === "You" ? " me" : ""}"><span class="p">${p}</span>${d.map((x) => `<span>${drv(x)}</span>`).join("")}</div>`).join("");
 
-// Example result, scored with the plan's rules (max 15)
-const res = { p1: "NOR", p2: "LEC", p3: "VER", pole: "NOR", fl: "PIA" };
-const score = ([, p1, p2, p3, pole, fl]) => {
+// Example result, scored with the Grand Prix rules (max 13)
+const res = { p1: "NOR", p2: "LEC", p3: "VER", pole: "NOR" };
+const score = ([, p1, p2, p3, pole]) => {
   const podium = [res.p1, res.p2, res.p3];
   return [p1, p2, p3].filter((d) => podium.includes(d)).length
     + (p1 === res.p1) * 4 + (p2 === res.p2) * 2 + (p3 === res.p3) * 2
-    + (pole === res.pole) * 2 + (fl === res.fl) * 2;
+    + (pole === res.pole) * 2;
 };
 document.getElementById("result").innerHTML =
-  [["P1", res.p1], ["P2", res.p2], ["P3", res.p3], ["POLE", res.pole], ["FL", res.fl]]
+  [["P1", res.p1], ["P2", res.p2], ["P3", res.p3], ["POLE", res.pole]]
     .map(([k, a]) => `<div><span>${k}</span>${drv(a)}</div>`).join("");
 
 // Example season totals before Singapore, plus this race's points

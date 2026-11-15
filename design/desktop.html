@@ -183,7 +183,7 @@ figcaption span { color: var(--muted); font-size: 13px; }
 .tbl { border-top: 1px solid var(--line); }
 .tr { display: grid; align-items: center; height: 50px; padding: 0 16px; border-bottom: 1px solid var(--line); font-size: 15px; }
 .tr.th { height: 38px; font: 500 12px var(--mono); letter-spacing: .08em; color: var(--faint); text-transform: uppercase; }
-.picks .tr { grid-template-columns: 1.4fr repeat(5, 1fr) 80px; }
+.picks .tr { grid-template-columns: 1.4fr repeat(4, 1fr) 80px; }
 .tr.me { background: #eceef10a; box-shadow: inset 3px 0 0 var(--ink); }
 .tr .p { font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .mini { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
@@ -307,7 +307,7 @@ figcaption span { color: var(--muted); font-size: 13px; }
         <div class="col">
           <div class="racehead">
             <div class="t"><span class="eyebrow">Sprint weekend · 9–11 Oct</span><h2 class="title">Singapore GP</h2><p class="sub">Marina Bay</p></div>
-            <div class="saved"><span class="dot"></span>3 of 5 picked · saved</div>
+            <div class="saved"><span class="dot"></span>3 of 4 picked · saved</div>
           </div>
           <div class="countdown">
             <div class="l"><span class="eyebrow">Picks lock in</span><div class="digits">13<small>d</small> 01<small>h</small> 12<small>m</small></div></div>
@@ -322,10 +322,9 @@ figcaption span { color: var(--muted); font-size: 13px; }
             </div>
           </div>
           <div style="display:grid;gap:12px">
-            <div class="label">Bonus <em>2 pts each</em></div>
+            <div class="label">Bonus <em>2 pts</em></div>
             <div class="bonus">
               <div class="pick"><span class="pos">POLE</span><span class="who"><b><i style="background:#ED1131"></i>LEC</b><span>Charles Leclerc · Ferrari</span></span><span class="pts">+2</span></div>
-              <div class="pick empty"><span class="pos">FL</span><span class="who"><b>Fastest lap</b></span><span class="pts">›</span></div>
             </div>
           </div>
         </div>
@@ -337,8 +336,9 @@ figcaption span { color: var(--muted); font-size: 13px; }
             <div>Each driver on the podium<b>1</b></div>
             <div>Exact P1<b>+4</b></div>
             <div>Exact P2, exact P3<b>+2 each</b></div>
-            <div>Pole, fastest lap<b>2 each</b></div>
-            <div class="tot">Perfect weekend<b>15</b></div>
+            <div>Pole<b>2</b></div>
+            <div>Sprint: bonuses are halved<b>max 8</b></div>
+            <div class="tot">Perfect Grand Prix<b>13</b></div>
           </div>
         </aside>
       </div>
@@ -404,9 +404,9 @@ figcaption span { color: var(--muted); font-size: 13px; }
           <div class="card sched reslist" id="result"></div>
           <div class="stat2">
             <div class="card"><span>Top score this race</span><b style="color:var(--purple)">Sarah · 13</b></div>
-            <div class="card"><span>League average</span><b>6.5</b></div>
+            <div class="card"><span>League average</span><b>5.8</b></div>
           </div>
-          <div class="fine" style="text-align:left">Up to 15 points per race</div>
+          <div class="fine" style="text-align:left">Up to 13 points per Grand Prix, 8 per Sprint</div>
         </aside>
       </div>
     </div>
@@ -544,35 +544,35 @@ d5.insertAdjacentHTML("beforeend", `<div class="dim"></div><div class="modal">
   }).join("")}</div></div>`).join("")}</div>
 </div>`);
 
-// Example picks: P1 P2 P3 POLE FL (same as mobile)
+// Example picks: P1 P2 P3 POLE (same as mobile)
 const picks = [
-  ["You",   "NOR", "VER", "LEC", "LEC", "PIA"],
-  ["Sarah", "NOR", "LEC", "VER", "NOR", "VER"],
-  ["Kenji", "VER", "NOR", "PIA", "VER", "NOR"],
-  ["Maya",  "LEC", "NOR", "HAM", "LEC", "LEC"],
-  ["Tomás", "NOR", "PIA", "RUS", "NOR", "PIA"],
-  ["Ayu",   "PIA", "NOR", "VER", "LEC", "NOR"],
+  ["You",   "NOR", "VER", "LEC", "LEC"],
+  ["Sarah", "NOR", "LEC", "VER", "NOR"],
+  ["Kenji", "VER", "NOR", "PIA", "VER"],
+  ["Maya",  "LEC", "NOR", "HAM", "LEC"],
+  ["Tomás", "NOR", "PIA", "RUS", "NOR"],
+  ["Ayu",   "PIA", "NOR", "VER", "LEC"],
 ];
 const mini = (p) => `<span class="mini">${p === "You" ? "D" : p[0]}</span>`;
 document.getElementById("picks-table").innerHTML =
-  `<div class="tr th"><span>Player</span><span>P1</span><span>P2</span><span>P3</span><span>Pole</span><span>Fastest lap</span><span style="text-align:right">Season</span></div>` +
+  `<div class="tr th"><span>Player</span><span>P1</span><span>P2</span><span>P3</span><span>Pole</span><span style="text-align:right">Season</span></div>` +
   picks.map(([p, ...d]) => `<div class="tr${p === "You" ? " me" : ""}"><span class="p">${mini(p)}${p}</span>${d.map((x) => `<span>${drv(x)}</span>`).join("")}<span class="num">P${["Sarah", "You", "Kenji", "Tomás", "Maya", "Ayu"].indexOf(p) + 1}</span></div>`).join("");
 
-// Example result, scored with the plan's rules (max 15)
-const res = { p1: "NOR", p2: "LEC", p3: "VER", pole: "NOR", fl: "PIA" };
-const score = ([, p1, p2, p3, pole, fl]) => {
+// Example result, scored with the Grand Prix rules (max 13)
+const res = { p1: "NOR", p2: "LEC", p3: "VER", pole: "NOR" };
+const score = ([, p1, p2, p3, pole]) => {
   const podium = [res.p1, res.p2, res.p3];
   return [p1, p2, p3].filter((d) => podium.includes(d)).length
     + (p1 === res.p1) * 4 + (p2 === res.p2) * 2 + (p3 === res.p3) * 2
-    + (pole === res.pole) * 2 + (fl === res.fl) * 2;
+    + (pole === res.pole) * 2;
 };
 document.getElementById("result").innerHTML =
-  [["P1", res.p1], ["P2", res.p2], ["P3", res.p3], ["Pole", res.pole], ["Fastest lap", res.fl]]
+  [["P1", res.p1], ["P2", res.p2], ["P3", res.p3], ["Pole", res.pole]]
     .map(([k, a]) => `<div class="srow"><b>${drv(a)}<span style="font:400 14px var(--body);color:var(--muted);text-align:left">${D[a][1]}</span></b><span>${k}</span></div>`).join("");
 
 // Example season totals before Singapore, plus this race's points and best race so far
 const before = { Sarah: 145, You: 142, Kenji: 139, Tomás: 136, Maya: 116, Ayu: 100 };
-const bestSoFar = { Sarah: 14, You: 13, Kenji: 12, Tomás: 15, Maya: 11, Ayu: 10 };
+const bestSoFar = { Sarah: 13, You: 13, Kenji: 12, Tomás: 13, Maya: 11, Ayu: 10 };
 const prevRank = Object.keys(before);
 const rows = picks.map((p) => ({ name: p[0], last: score(p), total: before[p[0]] + score(p) }))
   .sort((a, b) => b.total - a.total);
